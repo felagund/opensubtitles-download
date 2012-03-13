@@ -39,7 +39,7 @@ from xmlrpclib import ServerProxy, Error
 # Supported ISO codes: http://www.opensubtitles.org/addons/export_languages.php
 
 SubLanguageID = ['eng','cze']
-languages = {'alb': 'Albanian',  'ara': 'Arabic',  'arm': 'Armenian', 'may': 'Malay',  'bos': 'Bosnian',  'pob': 'Brazilian',  'bul': 'Bulgarian',  'cat': 'Catalan',  'eus': 'Basque',  'chi': 'Chinese',  'hrv': 'Croatian',  'cze': 'Czech',  'dan': 'Danish',  'dut': 'Dutch',  'eng': 'English', 'bre': 'British English', 'epo': 'Esperanto',  'est': 'Estonian',  'fin': 'Finnish',  'fre': 'French',  'geo': 'Georgian',  'ger': 'German',  'ell': 'Greek',  'heb': 'Hebrew',  'hun': 'Hungarian',  'ind': 'Indonesian',  'ita': 'Italian',  'jpn': 'Japanese',  'kaz': 'Kazakh',  'kor': 'Korean',  'lav': 'Latvian',  'lit': 'Lithuanian',  'ltz': 'Luxembourgish',  'mac': 'Macedonian',  'nor': 'Norwegian',  'per': 'Persian',  'pol': 'Polish',  'por': 'Portuguese',  'rum': 'Romanian',  'rus': 'Russian',  'scc': 'Serbian',  'slo': 'Slovak',  'slv': 'Slovenian',  'spa': 'Spanish',  'swe': 'Swedish ',  'tha': 'Thai',  'tur': 'Turkish',  'ukr': 'Ukrainian',  'vie': 'Vietnamese', 'sq': 'Albanian',  'ar': 'Arabic',  'hy': 'Armenian', 'ms': 'Malay',  'bs': 'Bosnian',  'pb': 'Brazilian',  'bg': 'Bulgarian',  'ca': 'Catalan',  'eu': 'Basque',  'zh': 'Chinese',  'hrv': 'Croatian',  'cs': 'Czech',  'da': 'Danish',  'nl': 'Dutch',  'en': 'English', 'eo':	'Esperanto', 'et': 'Estonian',  'fi': 'Finnish',  'fr': 'French',  'ka': 'Georgian',  'de': 'German',  'el': 'Greek',  'he': 'Hebrew',  'hu': 'Hungarian',  'id': 'Indonesian',  'it': 'Italian',  'ja': 'Japanese', 'kk': 'Kazakh', 'ko': 'Korean', 'mk': 'Macedonian',  'lv': 'Latvian',  'lt': 'Lithuanian',  'lb': 'Luxembourgish',  'no': 'Norwegian',  'fa': 'Persian',  'pl': 'Polish',  'pt': 'Portuguese',  'ro': 'Romanian',  'ru': 'Russian',  'sr': 'Serbian',  'sk': 'Slovak',  'sl': 'Slovenian',  'es': 'Spanish',  'sv': 'Swedish ',  'th': 'Thai',  'tr': 'Turkish',  'uk': 'Ukrainian',  'vi': 'Vietnamese'}
+languages = {'alb': 'Albanian',  'ara': 'Arabic',  'arm': 'Armenian', 'may': 'Malay',  'bos': 'Bosnian',  'pob': 'Brazilian',  'bul': 'Bulgarian',  'cat': 'Catalan',  'eus': 'Basque',  'chi': 'Chinese',  'hrv': 'Croatian',  'cze': 'Czech',  'dan': 'Danish',  'dut': 'Dutch',  'eng': 'English', 'bre': 'British English', 'epo': 'Esperanto',  'est': 'Estonian',  'fin': 'Finnish',  'fre': 'French',  'geo': 'Georgian',  'ger': 'German',  'ell': 'Greek',  'heb': 'Hebrew',  'hun': 'Hungarian',  'ind': 'Indonesian',  'ita': 'Italian',  'jpn': 'Japanese',  'kaz': 'Kazakh',  'kor': 'Korean',  'lav': 'Latvian',  'lit': 'Lithuanian',  'ltz': 'Luxembourgish',  'mac': 'Macedonian',  'nor': 'Norwegian',  'per': 'Persian',  'pol': 'Polish',  'por': 'Portuguese',  'rum': 'Romanian',  'rus': 'Russian',  'scc': 'Serbian',  'slo': 'Slovak',  'slv': 'Slovenian',  'spa': 'Spanish',  'swe': 'Swedish',  'tha': 'Thai',  'tur': 'Turkish',  'ukr': 'Ukrainian',  'vie': 'Vietnamese', 'sq': 'Albanian',  'ar': 'Arabic',  'hy': 'Armenian', 'ms': 'Malay',  'bs': 'Bosnian',  'pb': 'Brazilian',  'bg': 'Bulgarian',  'ca': 'Catalan',  'eu': 'Basque',  'zh': 'Chinese',  'hrv': 'Croatian',  'cs': 'Czech',  'da': 'Danish',  'nl': 'Dutch',  'en': 'English', 'eo':	'Esperanto', 'et': 'Estonian',  'fi': 'Finnish',  'fr': 'French',  'ka': 'Georgian',  'de': 'German',  'el': 'Greek',  'he': 'Hebrew',  'hu': 'Hungarian',  'id': 'Indonesian',  'it': 'Italian',  'ja': 'Japanese', 'kk': 'Kazakh', 'ko': 'Korean', 'mk': 'Macedonian',  'lv': 'Latvian',  'lt': 'Lithuanian',  'lb': 'Luxembourgish',  'no': 'Norwegian',  'fa': 'Persian',  'pl': 'Polish',  'pt': 'Portuguese',  'ro': 'Romanian',  'ru': 'Russian',  'sr': 'Serbian',  'sk': 'Slovak',  'sl': 'Slovenian',  'es': 'Spanish',  'sv': 'Swedish',  'th': 'Thai',  'tr': 'Turkish',  'uk': 'Ukrainian',  'vi': 'Vietnamese'}
 
 # ==== Server selection ========================================================
 # XML-RPC server domain for opensubtitles.org:
@@ -214,8 +214,15 @@ try:
                         CD += str(item['SubActualCD']) + '/' + str(item['SubSumCD'])
                     else:
                         CD += '\'\''                    
-                    subtitleItems += '"' + item['SubFileName'] + '" ' + item['LanguageName'] + ' ' + hearingImpaired + ' ' + CD + ' ' +item['SubFormat']  + ' '
-                process_subtitleSelection = subprocess.Popen('zenity --width=1024 --height=480 --list --title="' + os.path.basename(moviePath) + '" --column="Available subtitles" --column="Language" --column="Hearing impaired" --column="CD" --column="Format" '  + subtitleItems, shell=True, stdout=subprocess.PIPE)
+                    subtitleItems += '"' + item['SubFileName'] + '" ' + item['LanguageName'] + ' ' + hearingImpaired + ' ' + CD + ' ' + item['SubFormat']  + ' ' + item['IDMovieImdb'] + ' '
+                    #if item['SubFileName'][:-3] == os.path.basename(moviePath)[:-3]:
+                    #    subtitleSelected = item['SubFileName']
+                    #    break
+                    #else:
+                    #    subtitleSelected = ''
+
+                #if not subtitleSelected:
+                process_subtitleSelection = subprocess.Popen('zenity --width=1024 --height=480 --list --title="' + os.path.basename(moviePath) + '" --column="Available subtitles" --column="Language" --column="Hearing impaired" --column="CD" --column="Format" --column="IMDb ID" '  + subtitleItems, shell=True, stdout=subprocess.PIPE)
                 subtitleSelected = str(process_subtitleSelection.communicate()[0]).strip('\n')
                 resp = process_subtitleSelection.returncode
             else:
@@ -249,14 +256,15 @@ try:
                     encConv = ''
 
                 # Download and unzip selected subtitle (with progressbar)
-                process_subDownload = subprocess.call('(wget -O - ' + subURL + ' | gunzip ' + encConv + ' > "' + subDirName + '/' + subFileName + '") 2>&1 | zenity --progress --auto-close --pulsate --title="Downloading subtitle, please wait..." --text="Downloading subtitle for \'' + subtitlesList['data'][0]['MovieName'] + '\' : "', shell=True)
                 
+                process_subDownload = subprocess.call('(wget -O - ' + subURL + ' | gunzip ' + encConv + ' | dos2unix | mac2unix > "' + subDirName + '/' + subFileName + '") 2>&1 | zenity --progress --auto-close --pulsate --title="Downloading subtitle, please wait..." --text="Downloading subtitle for \'' + subtitlesList['data'][0]['MovieName'] + '\' : "', shell=True)
+                #| sed -e :a -e \'$d;N;2,3ba\' -e \'P;D\'
                 # Handle non srt formats
                 subFormat = subtitlesList['data'][subIndex]['SubFormat']
                 if subFormat == 'srt':
                     pass
                 elif subFormat == 'sub':
-                    subprocess.call(['zenity', '--error', '--text=Subtitle in format ' + 'sub' + '. Check the program.'])
+                    #subprocess.call(['zenity', '--error', '--text=Subtitle in format ' + 'sub' + '. Check the program.'])
                     mplayerOutput = subprocess.Popen(("mplayer", "-identify", "-frames", "0", "o-ao", "null", moviePath), stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
                     pattern = re.compile(r'(\d{2}.\d{3}) fps')
                     fps = pattern.search(mplayerOutput).groups()[0]
@@ -320,34 +328,36 @@ try:
     for lang in languages:
         if languages[lang] == movieLanguageFull and len(lang) == 3: 
             movieLanguageISO = lang
+
     
     # Get English title if movie is not in English
     engMovieName = ''
+    mkvMovieName = ''
+    movieName = handleArticles(subtitlesList['data'][0]['MovieName'])
     if not movieLanguageFull == 'English':
-        pickMovieName = ''
+        pickMovieName = 'TRUE "'+ imdbMovie.get('title') + '" "IMDb Title" ' 
         for aka in imdbMovie.get('akas'):
             if 'English' in aka.split('::')[1]:
-                engMovieName = aka.split('::')[0]
+                engMovieName = handleArticles(aka.split('::')[0])
                 break
             else: 
-                pickMovieName += 'FALSE "' + '" "'.join(aka.split('::')) + '" '
+                pickMovieName +=   'FALSE "' + '" "'.join(aka.split('::')) + '" '
         if not engMovieName:  
             try:
-                engMovieName = subprocess.check_output('zenity --width=720 --height=560  --list --text=Pick\ English title --radiolist --column=Pick --column=Titles --column="IMDB descriptions"' + pickMovieName,stderr=subprocess.STDOUT, shell=True  )
+                engMovieNameTemp = subprocess.check_output('zenity --width=720 --height=560  --list --text=Pick\ English\ title --radiolist --column=Pick --column=Titles --column=IMDd\ descriptions ' + pickMovieName,stderr=subprocess.STDOUT, shell=True)
             except subprocess.CalledProcessError:
                 pass
-        movieName = handleArticles(engMovieName)
-    else:
-        movieName = handleArticles(subtitlesList['data'][0]['MovieName'])
-            
+            engMovieName = handleArticles(engMovieNameTemp.replace('\n',''))
+        if not engMovieName == movieName:
+            mkvMovieName = engMovieName + '-'
     # Finally merge the file    
-    mkvFileName = ['mkvmerge', '-o', subDirName + '/' + handleArticles(engMovieName).replace(' ','_').lower() + '-' + handleArticles(subtitlesList['data'][0]['MovieName']).replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv']
+    mkvFileName = ['mkvmerge', '-o', subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv']
     subprocess.call(mkvFileName + ['--language', '0:' + movieLanguageISO, '--forced-track', '0:no', '--language', '1:' + movieLanguageISO, '--forced-track', '1:no', '-a', '1', '-d', '0', '-S', '-T', '--no-global-tags', '--no-chapters', moviePath] + mmgSubArgs + ['--track-order', trackOrder])
     
-    # Rename parent directory
-    if subDirName == os.getcwd():
-        os.chdir(os.pardir)        
-    os.rename(subDirName,movieName)
+    if not engMovieName:
+        os.rename(subDirName,movieName)
+    else:
+        os.rename(subDirName,engMovieName)
 
     # Disconnect from opensubtitles.org server, then exit
     server.LogOut(token)
@@ -355,5 +365,5 @@ try:
 except Error:
 
     # If an unknown error occur, say so (and apologize)
-     subprocess.call(['zenity', '--error', '--text=An unknown error occurred, sorry about that... Please check:\n- Your internet connection status\n- www.opensubtitles.org availability'])
+    subprocess.call(['zenity', '--error', '--text=An unknown error occurred, sorry about that... Please check:\n- Your internet connection status\n- www.opensubtitles.org availability'])
     exit(1)
