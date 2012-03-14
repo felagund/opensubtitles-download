@@ -291,7 +291,6 @@ try:
                     subPaths[lang]=subPath
                 else:
                     subprocess.call(['zenity', '--error', '--text=Subtitle in format ' + subFormat + '. Expect trouble.'])
-
                 # Inspect beginning and the end of the subtitle and edit it
                 f = open(subPath,"r")
                 allSubs =  f.readlines()
@@ -391,7 +390,7 @@ try:
 
     # Prepare command for subtitles
     mmgLangs = ''
-    mmgSubArgs = []
+    mmgSubArgs = ''
     trackOrder = '0:0,0:1'
     index = 0
     for lang in subFound:
@@ -400,24 +399,24 @@ try:
             mmgLangs += lang
         else:
             mmgLangs += lang + '_'
-        mmgSubArgs += ['--language', '0:' + lang, '--forced-track', '0:no', '-s', '0', '-D', '-A', '-T', '--no-global-tags', '--no-chapters', subPaths[lang]]
+        mmgSubArgs += '--language 0:' + lang + ' --forced-track 0:no -s 0 -D -A -T --no-global-tags --no-chapters ' + '"' + subPaths[lang] + '" '
         trackOrder += ',' + str(index) + ':0' 
     
     # Finally merge the file    
-    mkvFileName = [subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv']
-    subprocess.call(['mkvmerge', '-o'] + mkvFileName + ['--language', '0:' + movieLanguageISO, '--forced-track', '0:no', '--language', '1:' + movieLanguageISO, '--forced-track', '1:no', '-a', '1', '-d', '0', '-S', '-T', '--no-global-tags', '--no-chapters', moviePath] + mmgSubArgs + ['--track-order', trackOrder])
+    mkvFileName = '"' + subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv"'
+    subprocess.call('mkvmerge -o ' + mkvFileName + ' --language 0:' + movieLanguageISO + ' --forced-track 0:no --language 1:' + movieLanguageISO + ' --forced-track 1:no -a 1 -d 0 -S -T --no-global-tags --no-chapters "' + moviePath + '" ' + mmgSubArgs + '--track-order ' + trackOrder + ' | zenity --width=380 --progress --auto-close --pulsate --title="Merging subtitles with video, please wait..."', shell=True)
+
     
     # Clean up after ourselves
     filesToTrash = '"' + '" "'.join(subPaths.values()) + '"'
-    if os.path.exists(mkvFileName[0]):
+    if os.path.exists(mkvFileName):
         filesToTrash += ' "' + moviePath + '"'
     subprocess.call('trash ' + filesToTrash, shell=True)
-
+    
     # Rename parent directory
     if os.getcwd() == subDirName:
         os.chdir(os.pardir)
     newPath = "".join(['/' + i for i in  subDirName.split("/")[1:-1]]) + '/'
-
     if not engMovieName:
         os.rename(subDirName,movieName)
         newPath += movieName
@@ -425,11 +424,10 @@ try:
         os.rename(subDirName,engMovieName)
         newPath += engMovieName
     
-    # Move file where it belongs
+    # Move directory where it belongs
     if not os.path.exists(pathToMoveResultingFileTo):
         os.makedirs(pathToMoveResultingFileTo)        
     shutil.move(newPath,pathToMoveResultingFileTo)
-
 
     # Disconnect from opensubtitles.org server, then exit
     server.LogOut(token)
