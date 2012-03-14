@@ -352,6 +352,8 @@ try:
     
     # Get movie title and language from IMDB
     # If it takes too long, try again and again and then fail.
+    # This will be much easier in 3.3, will come out in August: 
+    # subprocess will get timout method http://bugs.python.org/issue5673
     def handler(signum, frame):
         raise IOError("IMDb is taking too long")
     signal.signal(signal.SIGALRM, handler)
