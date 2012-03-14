@@ -24,6 +24,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import shutil
 import os
 import sys
 import tempfile
@@ -43,6 +44,8 @@ from xmlrpclib import ServerProxy, Error
 # Supported ISO codes: http://www.opensubtitles.org/addons/export_languages.php
 
 SubLanguageID = ['eng','cze']
+pathToMoveResultingFileTo = 'home/drew/Desktop/Filmy a'
+
 languages = {'alb': 'Albanian',  'ara': 'Arabic',  'arm': 'Armenian', 'may': 'Malay',  'bos': 'Bosnian',  'pob': 'Brazilian',  'bul': 'Bulgarian',  'cat': 'Catalan',  'eus': 'Basque',  'chi': 'Chinese',  'hrv': 'Croatian',  'cze': 'Czech',  'dan': 'Danish',  'dut': 'Dutch',  'eng': 'English', 'bre': 'British English', 'epo': 'Esperanto',  'est': 'Estonian',  'fin': 'Finnish',  'fre': 'French',  'geo': 'Georgian',  'ger': 'German',  'ell': 'Greek',  'heb': 'Hebrew',  'hun': 'Hungarian',  'ind': 'Indonesian',  'ita': 'Italian',  'jpn': 'Japanese',  'kaz': 'Kazakh',  'kor': 'Korean',  'lav': 'Latvian',  'lit': 'Lithuanian',  'ltz': 'Luxembourgish',  'mac': 'Macedonian',  'nor': 'Norwegian',  'per': 'Persian',  'pol': 'Polish',  'por': 'Portuguese',  'rum': 'Romanian',  'rus': 'Russian',  'scc': 'Serbian',  'slo': 'Slovak',  'slv': 'Slovenian',  'spa': 'Spanish',  'swe': 'Swedish',  'tha': 'Thai',  'tur': 'Turkish',  'ukr': 'Ukrainian',  'vie': 'Vietnamese', 'sq': 'Albanian',  'ar': 'Arabic',  'hy': 'Armenian', 'ms': 'Malay',  'bs': 'Bosnian',  'pb': 'Brazilian',  'bg': 'Bulgarian',  'ca': 'Catalan',  'eu': 'Basque',  'zh': 'Chinese',  'hrv': 'Croatian',  'cs': 'Czech',  'da': 'Danish',  'nl': 'Dutch',  'en': 'English', 'eo':	'Esperanto', 'et': 'Estonian',  'fi': 'Finnish',  'fr': 'French',  'ka': 'Georgian',  'de': 'German',  'el': 'Greek',  'he': 'Hebrew',  'hu': 'Hungarian',  'id': 'Indonesian',  'it': 'Italian',  'ja': 'Japanese', 'kk': 'Kazakh', 'ko': 'Korean', 'mk': 'Macedonian',  'lv': 'Latvian',  'lt': 'Lithuanian',  'lb': 'Luxembourgish',  'no': 'Norwegian',  'fa': 'Persian',  'pl': 'Polish',  'pt': 'Portuguese',  'ro': 'Romanian',  'ru': 'Russian',  'sr': 'Serbian',  'sk': 'Slovak',  'sl': 'Slovenian',  'es': 'Spanish',  'sv': 'Swedish',  'th': 'Thai',  'tr': 'Turkish',  'uk': 'Ukrainian',  'vi': 'Vietnamese'}
 
 # ==== Server selection ========================================================
@@ -283,6 +286,7 @@ try:
                     pattern = re.compile(r'(\d{2}.\d{3}) fps')
                     fps = pattern.search(mplayerOutput).groups()[0]
                     subprocess.call(['subconv','-f', fps, subPath, subPath[:-3] + 'srt'])
+                    subPaths['.sub to delete'] = subPath
                     subPath = subPath[:-3] + 'srt'
                     subPaths[lang]=subPath
                 else:
@@ -331,19 +335,6 @@ try:
         subprocess.call(['zenity', '--info', '--title=No subtitles found', '--text=No subtitles found' + langNotFound + 'for this video:\n' + movieFileName[-1] + langFound])
     
     # Merge subtitle files with the video
-    # Prepare command for subtitles
-    mmgLangs = ''
-    mmgSubArgs = []
-    trackOrder = '0:0,0:1'
-    index = 0
-    for lang in subFound:
-        index += 1
-        if lang == subFound[-1]:
-            mmgLangs += lang
-        else:
-            mmgLangs += lang + '_'
-        mmgSubArgs += ['--language', '0:' + lang, '--forced-track', '0:no', '-s', '0', '-D', '-A', '-T', '--no-global-tags', '--no-chapters', subPaths[lang]]
-        trackOrder += ',' + str(index) + ':0' 
     
     # Ask about the language of the movie
     #try:
@@ -351,7 +342,7 @@ try:
     #except subprocess.CalledProcessError:
     
     # Get movie title and language from IMDB
-    # If it takes too long ,try again and again and then fail.
+    # If it takes too long, try again and again and then fail.
     def handler(signum, frame):
         raise IOError("IMDb is taking too long")
     signal.signal(signal.SIGALRM, handler)
@@ -360,30 +351,12 @@ try:
     for i in range(3):
         if imdbMovie:
             break
-        try:
-         try:
-          try:
-           try:
-            try:
-             try: # for some reason, just one try is not enough
-                    signal.alarm(7)
-                    imdbMovie = imdb.IMDb().get_movie(subtitlesList['data'][0]['IDMovieImdb'])
-           
-             except:
-                 pass
-            except:
-                pass
-           except:
-               pass
-          except:
-              pass
-         except:
-             pass
-        except:
-            pass
-        signal.alarm(0)   
-    if not imdbMovie:
+        signal.alarm(7) # not sure why we do not need an try: except: here but it works without it too
+        imdbMovie = imdb.IMDb().get_movie(subtitlesList['data'][0]['IDMovieImdb'])
+    signal.alarm(0)
+    if not imdbMovie:    
         subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
+        sys.exit(1)
     
     movieLanguageFull = imdbMovie.get('languages')[0]
     
@@ -413,11 +386,31 @@ try:
             engMovieName = handleArticles(engMovieNameTemp.replace('\n',''))
         if not engMovieName == movieName:
             mkvMovieName = engMovieName + '-'
+
+    # Prepare command for subtitles
+    mmgLangs = ''
+    mmgSubArgs = []
+    trackOrder = '0:0,0:1'
+    index = 0
+    for lang in subFound:
+        index += 1
+        if lang == subFound[-1]:
+            mmgLangs += lang
+        else:
+            mmgLangs += lang + '_'
+        mmgSubArgs += ['--language', '0:' + lang, '--forced-track', '0:no', '-s', '0', '-D', '-A', '-T', '--no-global-tags', '--no-chapters', subPaths[lang]]
+        trackOrder += ',' + str(index) + ':0' 
     
     # Finally merge the file    
-    mkvFileName = ['mkvmerge', '-o', subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv']
-    subprocess.call(mkvFileName + ['--language', '0:' + movieLanguageISO, '--forced-track', '0:no', '--language', '1:' + movieLanguageISO, '--forced-track', '1:no', '-a', '1', '-d', '0', '-S', '-T', '--no-global-tags', '--no-chapters', moviePath] + mmgSubArgs + ['--track-order', trackOrder])
+    mkvFileName = [subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv']
+    subprocess.call(['mkvmerge', '-o'] + mkvFileName + ['--language', '0:' + movieLanguageISO, '--forced-track', '0:no', '--language', '1:' + movieLanguageISO, '--forced-track', '1:no', '-a', '1', '-d', '0', '-S', '-T', '--no-global-tags', '--no-chapters', moviePath] + mmgSubArgs + ['--track-order', trackOrder])
     
+    # Clean up after ourselves
+    filesToTrash = '"' + '" "'.join(subPaths.values()) + '"'
+    if os.path.exists(mkvFileName[0]):
+        filesToTrash += ' "' + moviePath + '"'
+    subprocess.call('trash ' + filesToTrash, shell=True)
+
     # Rename parent directory
     if os.getcwd() == subDirName:
         os.chdir(os.pardir)
@@ -425,6 +418,7 @@ try:
         os.rename(subDirName,movieName)
     else:
         os.rename(subDirName,engMovieName)
+    
 
     # Disconnect from opensubtitles.org server, then exit
     server.LogOut(token)
