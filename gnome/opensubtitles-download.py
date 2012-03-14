@@ -232,7 +232,8 @@ try:
             else:
                 subtitleSelected = ''
                 resp = 0
-           
+                   
+            subDirName = os.path.abspath(os.path.dirname(moviePath)) # out of the following if so the code does not fail when not subtitles selected 
             if resp == 0:
                 # Select subtitle file to download
                 index = 0
@@ -243,7 +244,6 @@ try:
                     else:
                         index += 1
                 subFound.append(subtitlesList['data'][subIndex]['SubLanguageID'])
-                subDirName = os.path.abspath(os.path.dirname(moviePath))
                 subURL = subtitlesList['data'][subIndex]['SubDownloadLink']
                 subFileName = os.path.basename(moviePath)[:-4] + '_' + subFound[-1] + subtitlesList['data'][subIndex]['SubFileName'][-4:]
                 subFileName = subFileName.replace('"', '\\"')
