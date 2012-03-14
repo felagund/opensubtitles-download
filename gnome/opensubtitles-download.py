@@ -31,6 +31,7 @@ import struct
 import subprocess
 import mimetypes
 import imdb
+import chardet
 from sys import argv
 from xmlrpclib import ServerProxy, Error
 
@@ -251,14 +252,24 @@ try:
                 # Convert subtitles to unicode
                 if languages[subFound[-1]] == 'Czech':
                     encConv = '| enconv -L czech -x utf8'
-                elif languages[subFound[-1]] == 'English':
-                    encConv = '| iconv --from-code=ISO-8859-1 --to=utf-8'
                 else:
                     encConv = ''
 
                 # Download and unzip selected subtitle (with progressbar)
                 
-                process_subDownload = subprocess.call('(wget -O - ' + subURL + ' | gunzip ' + encConv + ' | dos2unix | mac2unix > "' + subDirName + '/' + subFileName + '") 2>&1 | zenity --progress --auto-close --pulsate --title="Downloading subtitle, please wait..." --text="Downloading subtitle for \'' + subtitlesList['data'][0]['MovieName'] + '\' : "', shell=True)
+                process_subDownload = subprocess.call('(wget -O - ' + subURL + ' | gunzip ' + encConv + ' | dos2unix | mac2unix > "' + subPath + '") 2>&1 | zenity --progress --auto-close --pulsate --title="Downloading subtitle, please wait..." --text="Downloading subtitle for \'' + subtitlesList['data'][0]['MovieName'] + '\' : "', shell=True)
+                
+                # Convert English subtitles to unicode (only if the use some special character, otherwise stay ascii which we do not mind)
+                if languages[subFound[-1]] == 'English':
+                    f = open(subPath,"r").read()
+                    enc = chardet.detect(f)['encoding']
+                    tmp = f.decode(enc)
+                    f = open(subPath, 'w')
+                    f.write(tmp.encode('utf-8'))
+                    f.close()
+                    #subprocess.call('iconv --from-code=' + enc + ' --to=utf-8 "'+ subPath + '" > "' + subPath + 'a"',shell=True) 
+
+
                 #| sed -e :a -e \'$d;N;2,3ba\' -e \'P;D\'
                 # Handle non srt formats
                 subFormat = subtitlesList['data'][subIndex]['SubFormat']
@@ -387,11 +398,14 @@ try:
     # Finally merge the file    
     mkvFileName = ['mkvmerge', '-o', subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv']
     subprocess.call(mkvFileName + ['--language', '0:' + movieLanguageISO, '--forced-track', '0:no', '--language', '1:' + movieLanguageISO, '--forced-track', '1:no', '-a', '1', '-d', '0', '-S', '-T', '--no-global-tags', '--no-chapters', moviePath] + mmgSubArgs + ['--track-order', trackOrder])
-    os.chdir(os.pardir)
-    #if not engMovieName:
-    #    os.rename(subDirName,movieName)
-    #else:
-    #    os.rename(subDirName,engMovieName)
+    
+    # Rename parent directory
+    if os.getcwd() == subDirName:
+        os.chdir(os.pardir)
+    if not engMovieName:
+        os.rename(subDirName,movieName)
+    else:
+        os.rename(subDirName,engMovieName)
 
     # Disconnect from opensubtitles.org server, then exit
     server.LogOut(token)
