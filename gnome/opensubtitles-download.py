@@ -412,9 +412,9 @@ try:
     
     # Finally merge the file    
     mkvFileName = '"' + subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv"'
-    subprocess.call('mkvmerge -o ' + mkvFileName + ' --language 0:' + movieLanguageISO + ' --forced-track 0:no --language 1:' + movieLanguageISO + ' --forced-track 1:no -a 1 -d 0 -S -T --no-global-tags --no-chapters "' + moviePath + '" ' + mmgSubArgs + '--track-order ' + trackOrder + ' | zenity --width=380 --progress --auto-close --pulsate --title="Merging subtitles with video, please wait..."', shell=True)
+    subprocess.call('mkvmerge -o ' + mkvFileName + ' --language 0:' + movieLanguageISO + ' --forced-track 0:no --language 1:' + movieLanguageISO + ' --forced-track 1:no -a 1 -d 0 -S -T --no-global-tags --no-chapters "' + moviePath + '" ' + mmgSubArgs + '--track-order ' + trackOrder + '  | stdbuf -i0 -o0 -e0 tr \'\\r\' \'\\n\' |   stdbuf -i0 -o0 -e0 grep \'Progress:\' | stdbuf -i0 -e0  -o0 sed -e \'s/Progress: //\' -e \'s/%//\' -e \'s/\(....\)\(..\)\(..\)/\1-\^C\3/\' | zenity --width=480 --progress --auto-close --percentage=0 --text="Merging..." --title="Merging subtitles with video, please wait..."', shell=True)
 
-    
+     
     # Clean up after ourselves
     filesToTrash = '"' + '" "'.join(subPaths.values()) + '"'
     if os.path.exists(mkvFileName):
@@ -441,8 +441,8 @@ try:
     # Disconnect from opensubtitles.org server, then exit
     server.LogOut(token)
     sys.exit(0)
+    
 except Error:
-
     # If an unknown error occur, say so (and apologize)
     subprocess.call(['zenity', '--error', '--text=An unknown error occurred, sorry about that... Please check:\n- Your internet connection status\n- www.opensubtitles.org availability'])
     sys.exit(1)
