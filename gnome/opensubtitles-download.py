@@ -25,6 +25,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 import tempfile
 import signal
 import re
@@ -134,7 +135,7 @@ moviePath = ''
 
 if len(argv) == 0:
     #subprocess.call(['zenity', '--error', '--text=No file selected.'])
-    exit(1)
+    sys.exit(1)
 elif argv[0] == '--file':
     moviePath = argv[1]
 else:
@@ -156,7 +157,7 @@ else:
     
     # If moviePathList is empty, abort
     if len(moviePathList) == 0:
-        exit(1)
+        sys.exit(1)
     
     # The first file will be processed immediatly
     moviePath = moviePathList[0]
@@ -173,11 +174,11 @@ try:
         session = server.LogIn('', '', 'en', 'opensubtitles-download 1.1')
         if session['status'] != '200 OK':
             subprocess.call(['zenity', '--error', '--text=Unable to reach opensubtitles.org server: ' + session['status'] + '. Please check:\n- Your internet connection status\n- www.opensubtitles.org availability'])
-            exit(1)
+            sys.exit(1)
         token = session['token']
     except Exception:
         subprocess.call(['zenity', '--error', '--text=Unable to reach opensubtitles.org server. Please check:\n- Your internet connection status\n- www.opensubtitles.org availability'])
-        exit(1)
+        sys.exit(1)
     
 
     movieHash = hashFile(moviePath)
@@ -427,9 +428,9 @@ try:
 
     # Disconnect from opensubtitles.org server, then exit
     server.LogOut(token)
-    exit(0)
+    sys.exit(0)
 except Error:
 
     # If an unknown error occur, say so (and apologize)
     subprocess.call(['zenity', '--error', '--text=An unknown error occurred, sorry about that... Please check:\n- Your internet connection status\n- www.opensubtitles.org availability'])
-    exit(1)
+    sys.exit(1)
