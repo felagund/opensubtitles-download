@@ -44,7 +44,7 @@ from xmlrpclib import ServerProxy, Error
 # Supported ISO codes: http://www.opensubtitles.org/addons/export_languages.php
 
 SubLanguageID = ['eng','cze']
-pathToMoveResultingFileTo = 'home/drew/Desktop/Filmy a'
+pathToMoveResultingFileTo = '/home/drew/Desktop/Filmy/'
 
 languages = {'alb': 'Albanian',  'ara': 'Arabic',  'arm': 'Armenian', 'may': 'Malay',  'bos': 'Bosnian',  'pob': 'Brazilian',  'bul': 'Bulgarian',  'cat': 'Catalan',  'eus': 'Basque',  'chi': 'Chinese',  'hrv': 'Croatian',  'cze': 'Czech',  'dan': 'Danish',  'dut': 'Dutch',  'eng': 'English', 'bre': 'British English', 'epo': 'Esperanto',  'est': 'Estonian',  'fin': 'Finnish',  'fre': 'French',  'geo': 'Georgian',  'ger': 'German',  'ell': 'Greek',  'heb': 'Hebrew',  'hun': 'Hungarian',  'ind': 'Indonesian',  'ita': 'Italian',  'jpn': 'Japanese',  'kaz': 'Kazakh',  'kor': 'Korean',  'lav': 'Latvian',  'lit': 'Lithuanian',  'ltz': 'Luxembourgish',  'mac': 'Macedonian',  'nor': 'Norwegian',  'per': 'Persian',  'pol': 'Polish',  'por': 'Portuguese',  'rum': 'Romanian',  'rus': 'Russian',  'scc': 'Serbian',  'slo': 'Slovak',  'slv': 'Slovenian',  'spa': 'Spanish',  'swe': 'Swedish',  'tha': 'Thai',  'tur': 'Turkish',  'ukr': 'Ukrainian',  'vie': 'Vietnamese', 'sq': 'Albanian',  'ar': 'Arabic',  'hy': 'Armenian', 'ms': 'Malay',  'bs': 'Bosnian',  'pb': 'Brazilian',  'bg': 'Bulgarian',  'ca': 'Catalan',  'eu': 'Basque',  'zh': 'Chinese',  'hrv': 'Croatian',  'cs': 'Czech',  'da': 'Danish',  'nl': 'Dutch',  'en': 'English', 'eo':	'Esperanto', 'et': 'Estonian',  'fi': 'Finnish',  'fr': 'French',  'ka': 'Georgian',  'de': 'German',  'el': 'Greek',  'he': 'Hebrew',  'hu': 'Hungarian',  'id': 'Indonesian',  'it': 'Italian',  'ja': 'Japanese', 'kk': 'Kazakh', 'ko': 'Korean', 'mk': 'Macedonian',  'lv': 'Latvian',  'lt': 'Lithuanian',  'lb': 'Luxembourgish',  'no': 'Norwegian',  'fa': 'Persian',  'pl': 'Polish',  'pt': 'Portuguese',  'ro': 'Romanian',  'ru': 'Russian',  'sr': 'Serbian',  'sk': 'Slovak',  'sl': 'Slovenian',  'es': 'Spanish',  'sv': 'Swedish',  'th': 'Thai',  'tr': 'Turkish',  'uk': 'Ukrainian',  'vi': 'Vietnamese'}
 
@@ -299,12 +299,14 @@ try:
                 tmp = tempfile.TemporaryFile()
                 tmp.write(''.join(startEndOfSubs))
                 tmp.seek(0)
+                editedSubsString = ''
                 editedSubsString = subprocess.Popen(['zenity', '--width=480', '--height=720', '--text-info', '--editable', '--title="Delete cruft from beginning and end"'],stdin=tmp, stdout=subprocess.PIPE).communicate()[0]
-                editedSubsList = [i+ '\n' for i in editedSubsString.split("\n")]
-                cutIndex = editedSubsList.index('=================<88>=================\n')
-                allSubs = editedSubsList[:cutIndex] + allSubs[12:-12] + editedSubsList[cutIndex+1:]
-                f = open(subPath, "w")
-                f.write(''.join(allSubs))
+                if editedSubsString: # If user cancels zenity dialog
+                    editedSubsList = [i+ '\n' for i in editedSubsString.split("\n")]
+                    cutIndex = editedSubsList.index('=================<88>=================\n')
+                    allSubs = editedSubsList[:cutIndex] + allSubs[12:-12] + editedSubsList[cutIndex+1:]
+                    f = open(subPath, "w")
+                    f.write(''.join(allSubs))
                 f.close()
                 tmp.close()
 
@@ -414,11 +416,20 @@ try:
     # Rename parent directory
     if os.getcwd() == subDirName:
         os.chdir(os.pardir)
+    newPath = "".join(['/' + i for i in  subDirName.split("/")[1:-1]]) + '/'
+
     if not engMovieName:
         os.rename(subDirName,movieName)
+        newPath += movieName
     else:
         os.rename(subDirName,engMovieName)
+        newPath += engMovieName
     
+    # Move file where it belongs
+    if not os.path.exists(pathToMoveResultingFileTo):
+        os.makedirs(pathToMoveResultingFileTo)        
+    shutil.move(newPath,pathToMoveResultingFileTo)
+
 
     # Disconnect from opensubtitles.org server, then exit
     server.LogOut(token)
