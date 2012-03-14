@@ -25,6 +25,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import signal
 import re
 import struct
 import subprocess
@@ -214,7 +215,7 @@ try:
                         CD += str(item['SubActualCD']) + '/' + str(item['SubSumCD'])
                     else:
                         CD += '\'\''                    
-                    subtitleItems += '"' + item['SubFileName'] + '" ' + item['LanguageName'] + ' ' + hearingImpaired + ' ' + CD + ' ' + item['SubFormat']  + ' ' + item['IDMovieImdb'] + ' '
+                    subtitleItems += '"' + item['SubFileName'] + '" ' + item['LanguageName'] + ' ' + hearingImpaired + ' ' + CD + ' ' + item['SubFormat']  + ' ' + item['IDMovieImdb'] + ' ' +item['SubDownloadsCnt'] + ' '
                     #if item['SubFileName'][:-3] == os.path.basename(moviePath)[:-3]:
                     #    subtitleSelected = item['SubFileName']
                     #    break
@@ -222,7 +223,7 @@ try:
                     #    subtitleSelected = ''
 
                 #if not subtitleSelected:
-                process_subtitleSelection = subprocess.Popen('zenity --width=1024 --height=480 --list --title="' + os.path.basename(moviePath) + '" --column="Available subtitles" --column="Language" --column="Hearing impaired" --column="CD" --column="Format" --column="IMDb ID" '  + subtitleItems, shell=True, stdout=subprocess.PIPE)
+                process_subtitleSelection = subprocess.Popen('zenity --width=1024 --height=480 --list --title="' + os.path.basename(moviePath) + '" --column="Available subtitles" --column="Language" --column="Hearing impaired" --column="CD" --column="Format" --column="IMDb ID" --column="Download count" '  + subtitleItems, shell=True, stdout=subprocess.PIPE)
                 subtitleSelected = str(process_subtitleSelection.communicate()[0]).strip('\n')
                 resp = process_subtitleSelection.returncode
             else:
@@ -321,7 +322,40 @@ try:
     #except subprocess.CalledProcessError:
     
     # Get movie title and language from IMDB
-    imdbMovie = imdb.IMDb().get_movie(subtitlesList['data'][0]['IDMovieImdb'])
+    # If it takes too long ,try again and again and then fail.
+    def handler(signum, frame):
+        raise IOError("IMDb is taking too long")
+    signal.signal(signal.SIGALRM, handler)
+    
+    imdbMovie = None
+    for i in range(3):
+        if imdbMovie:
+            break
+        try:
+         try:
+          try:
+           try:
+            try:
+             try: # for some reason, just one try is not enough
+                    signal.alarm(7)
+                    imdbMovie = imdb.IMDb().get_movie(subtitlesList['data'][0]['IDMovieImdb'])
+           
+             except:
+                 pass
+            except:
+                pass
+           except:
+               pass
+          except:
+              pass
+         except:
+             pass
+        except:
+            pass
+        signal.alarm(0)   
+    if not imdbMovie:
+        subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
+    
     movieLanguageFull = imdbMovie.get('languages')[0]
     
     # Get three-letter ISO code
@@ -353,11 +387,11 @@ try:
     # Finally merge the file    
     mkvFileName = ['mkvmerge', '-o', subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv']
     subprocess.call(mkvFileName + ['--language', '0:' + movieLanguageISO, '--forced-track', '0:no', '--language', '1:' + movieLanguageISO, '--forced-track', '1:no', '-a', '1', '-d', '0', '-S', '-T', '--no-global-tags', '--no-chapters', moviePath] + mmgSubArgs + ['--track-order', trackOrder])
-    
-    if not engMovieName:
-        os.rename(subDirName,movieName)
-    else:
-        os.rename(subDirName,engMovieName)
+    os.chdir(os.pardir)
+    #if not engMovieName:
+    #    os.rename(subDirName,movieName)
+    #else:
+    #    os.rename(subDirName,engMovieName)
 
     # Disconnect from opensubtitles.org server, then exit
     server.LogOut(token)
