@@ -25,6 +25,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import tempfile
 import signal
 import re
 import struct
@@ -281,10 +282,26 @@ try:
                     pattern = re.compile(r'(\d{2}.\d{3}) fps')
                     fps = pattern.search(mplayerOutput).groups()[0]
                     subprocess.call(['subconv','-f', fps, subPath, subPath[:-3] + 'srt'])
-                    subPaths[lang]=subPath[:-3] + 'srt'
+                    subPath = subPath[:-3] + 'srt'
+                    subPaths[lang]=subPath
                 else:
                     subprocess.call(['zenity', '--error', '--text=Subtitle in format ' + subFormat + '. Expect trouble.'])
 
+                # Inspect beginning and the end of the subtitle and edit it
+                f = open(subPath,"r")
+                allSubs =  f.readlines()
+                startEndOfSubs = allSubs[:12] + ['=================<88>=================\n'] + allSubs[-12:]
+                tmp = tempfile.TemporaryFile()
+                tmp.write(''.join(startEndOfSubs))
+                tmp.seek(0)
+                editedSubsString = subprocess.Popen(['zenity', '--width=480', '--height=720', '--text-info', '--editable', '--title="Delete cruft from beginning and end"'],stdin=tmp, stdout=subprocess.PIPE).communicate()[0]
+                editedSubsList = [i+ '\n' for i in editedSubsString.split("\n")]
+                cutIndex = editedSubsList.index('=================<88>=================\n')
+                allSubs = editedSubsList[:cutIndex] + allSubs[12:-12] + editedSubsList[cutIndex+1:]
+                f = open(subPath, "w")
+                f.write(''.join(allSubs))
+                f.close()
+                tmp.close()
 
                 # If an error occur, say so
                 if process_subDownload != 0:
@@ -395,6 +412,7 @@ try:
             engMovieName = handleArticles(engMovieNameTemp.replace('\n',''))
         if not engMovieName == movieName:
             mkvMovieName = engMovieName + '-'
+    
     # Finally merge the file    
     mkvFileName = ['mkvmerge', '-o', subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv']
     subprocess.call(mkvFileName + ['--language', '0:' + movieLanguageISO, '--forced-track', '0:no', '--language', '1:' + movieLanguageISO, '--forced-track', '1:no', '-a', '1', '-d', '0', '-S', '-T', '--no-global-tags', '--no-chapters', moviePath] + mmgSubArgs + ['--track-order', trackOrder])
