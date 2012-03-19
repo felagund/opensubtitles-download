@@ -71,6 +71,19 @@ def handleArticles(title):
         title =  title[2].upper() + title[3:] + ', ' + title[:1]
     return title
 
+# ==== Display and edit subtitles if something is wrong =======================
+def editSubtitles(subsToEdit,zenityTitle):
+        tmp = tempfile.TemporaryFile()
+        tmp.write(''.join(subsToEdit))
+        tmp.seek(0)
+        editedSubsString = ''
+        editedSubsString = subprocess.Popen(['zenity', '--width=480', '--height=720', '--text-info', '--editable', '--title="' + zenityTitle + '"'],stdin=tmp, stdout=subprocess.PIPE).communicate()[0]
+        tmp.close()
+        if editedSubsString:
+            return [i+ '\n' for i in editedSubsString.split("\n")]
+        else: # If user cancels zenity dialog
+            return subsToEdit
+
 # ==== Check file path & file ==================================================
 def checkFile(path):
     """Check mimetype and/or file extension to detect valid video file"""
@@ -237,7 +250,7 @@ try:
                     #    subtitleSelected = ''
 
                 #if not subtitleSelected:
-                process_subtitleSelection = subprocess.Popen('zenity --width=1024 --height=480 --list --title="' + os.path.basename(moviePath) + '" --column="Available subtitles" --column="Language" --column="Hearing impaired" --column="CD" --column="Format" --column="IMDb ID" --column="Download count" '  + subtitleItems, shell=True, stdout=subprocess.PIPE)
+                process_subtitleSelection = subprocess.Popen('zenity --width=1280 --height=480 --list --title="' + os.path.basename(moviePath) + '" --column="Available subtitles" --column="Language" --column="Hearing impaired" --column="CD" --column="Format" --column="IMDb ID" --column="Download count" '  + subtitleItems, shell=True, stdout=subprocess.PIPE)
                 subtitleSelected = str(process_subtitleSelection.communicate()[0]).strip('\n')
                 resp = process_subtitleSelection.returncode
             else:
@@ -299,23 +312,45 @@ try:
                     subPaths[lang]=subPath
                 else:
                     subprocess.call(['zenity', '--error', '--text=Subtitle in format ' + subFormat + '. Expect trouble.'])
-                # Inspect beginning and the end of the subtitle and edit it
+                # Edit subtitles
                 f = open(subPath,"r")
                 allSubs =  f.readlines()
+                
+                # Check whether we don't have bad subtitles without timecodes
+                delta = 0                
+                for i in [i for i in allSubs]:
+                    if i[:-1].isdigit():
+                        i = allSubs.index(i)
+                        if not '-->' in allSubs[i+1]:
+                            if not '-->' in allSubs[i-1]:
+                                i -= delta
+                                editedSubsList = editSubtitles(allSubs[i-6:i+7],'Something wrong with the subtitles, please inspect')
+                                allSubs = allSubs[:i-6] + editedSubsList + allSubs[i+7:]
+                                delta += 13 - len(editedSubsList)
+
+                # Delete some automatically inserted subtitles
+                deleteLines = ['Najlepsi zazitok z pozerania - Open Subtitles MKV Player\n','[ENGLISH]\n','Best watched using Open Subtitles MKV Player\n','FDb.cz - navstivte svet filmu\n','Subtitles downloaded from www.OpenSubtitles.org\n','Download Movie Subtitles Searcher from www.OpenSubtitles.org\n']
+                deleteLinesIndexes = [allSubs.index(i) for i in allSubs if i in deleteLines]
+                delta = 0
+                for index in deleteLinesIndexes:
+                    index -= delta 
+                    allSubs = allSubs[0 : index-2] + allSubs[index+2:]
+                    delta +=4
+                
+                # Remove blank lines in the end and in the beginning
+                while allSubs[0] == '\n':
+                    allSubs = allSubs[1:]
+                while allSubs[-1] == ['\n']:
+                    allSubs = allSubs[:-1]
+                    
+                # Edit beginning and end for signatures and so on
                 startEndOfSubs = allSubs[:12] + ['=================<88>=================\n'] + allSubs[-12:]
-                tmp = tempfile.TemporaryFile()
-                tmp.write(''.join(startEndOfSubs))
-                tmp.seek(0)
-                editedSubsString = ''
-                editedSubsString = subprocess.Popen(['zenity', '--width=480', '--height=720', '--text-info', '--editable', '--title="Delete cruft from beginning and end"'],stdin=tmp, stdout=subprocess.PIPE).communicate()[0]
-                if editedSubsString: # If user cancels zenity dialog
-                    editedSubsList = [i+ '\n' for i in editedSubsString.split("\n")]
-                    cutIndex = editedSubsList.index('=================<88>=================\n')
-                    allSubs = editedSubsList[:cutIndex] + allSubs[12:-12] + editedSubsList[cutIndex+1:]
-                    f = open(subPath, "w")
-                    f.write(''.join(allSubs))
+                editedSubsList = editSubtitles(startEndOfSubs,'Delete cruft from beginning and end')                    
+                cutIndex = editedSubsList.index('=================<88>=================\n')
+                allSubs = editedSubsList[:cutIndex] + allSubs[12:-12] + editedSubsList[cutIndex+1:]
+                f = open(subPath, "w")
+                f.write(''.join(allSubs))
                 f.close()
-                tmp.close()
 
                 # If an error occur, say so
                 if process_subDownload != 0:
@@ -413,33 +448,46 @@ try:
         trackOrder += ',' + str(index) + ':0' 
     
     # Finally merge the file    
-    mkvFileName = '"' + subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv"'
-    subprocess.call('mkvmerge -o ' + mkvFileName + ' --language 0:' + movieLanguageISO + ' --forced-track 0:no --language 1:' + movieLanguageISO + ' --forced-track 1:no -a 1 -d 0 -S -T --no-global-tags --no-chapters "' + moviePath + '" ' + mmgSubArgs + '--track-order ' + trackOrder + '  | stdbuf -i0 -o0 -e0 tr \'\\r\' \'\\n\' |   stdbuf -i0 -o0 -e0 grep \'Progress:\' | stdbuf -i0 -e0  -o0 sed -e \'s/Progress: //\' -e \'s/%//\' -e \'s/\(....\)\(..\)\(..\)/\1-\^C\3/\' | zenity --width=480 --progress --auto-close --percentage=0 --text="Merging..." --title="Merging subtitles with video, please wait..."', shell=True)
+    mkvFileName = subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv'
+    subprocess.call('mkvmerge -o "' + mkvFileName + '" --language 0:' + movieLanguageISO + ' --forced-track 0:no --language 1:' + movieLanguageISO + ' --forced-track 1:no -a 1 -d 0 -S -T --no-global-tags --no-chapters "' + moviePath + '" ' + mmgSubArgs + '--track-order ' + trackOrder + '  | stdbuf -i0 -o0 -e0 tr \'\\r\' \'\\n\' |   stdbuf -i0 -o0 -e0 grep \'Progress:\' | stdbuf -i0 -e0  -o0 sed -e \'s/Progress: //\' -e \'s/%//\' -e \'s/\(....\)\(..\)\(..\)/\1-\^C\3/\' | zenity --width=480 --progress --auto-close --percentage=0 --text="Merging..." --title="Merging subtitles with video, please wait..."', shell=True)
+    
+    if not engMovieName:
+        movieDirName = movieName
+    else:
+        movieDirName = engMovieName
 
-     
+    # Move resulting file to a specified directory
+    newFilePath = pathToMoveResultingFileTo + movieDirName + '/'
+    if pathToMoveResultingFileTo:
+        if not os.path.exists(pathToMoveResultingFileTo):
+            os.makedirs(pathToMoveResultingFileTo)
+        if not os.path.exists(newFilePath):
+            os.makedirs(newFilePath)
+        if os.path.exists(newFilePath + mkvFileName.rsplit('/')[-1]):
+            subprocess.call('trash "' + newFilePath + mkvFileName.rsplit('/')[-1] + '"', shell=True)
+        shutil.move(mkvFileName,newFilePath)
+    
     # Clean up after ourselves
-    filesToTrash = '"' + '" "'.join(subPaths.values()) + '"'
-    if os.path.exists(mkvFileName):
-        filesToTrash += ' "' + moviePath + '"'
-    subprocess.call('trash ' + filesToTrash, shell=True)
+    # filesToTrash = '"' + '" "'.join(subPaths.values()) + '"'
+    # if os.path.exists(mkvFileName):
+    #    filesToTrash += ' "' + moviePath + '"'
+    #subprocess.call('trash ' + filesToTrash, shell=True)
     
     # Rename parent directory
     if os.getcwd() == subDirName:
         os.chdir(os.pardir)
-    newPath = "".join(['/' + i for i in  subDirName.split("/")[1:-1]]) + '/'
-    if not engMovieName:
-        os.rename(subDirName,movieName)
-        newPath += movieName
-    else:
-        os.rename(subDirName,engMovieName)
-        newPath += engMovieName
-    
-    # Move directory where it belongs
-    if pathToMoveResultingFileTo:
-        if not os.path.exists(pathToMoveResultingFileTo):
-            os.makedirs(pathToMoveResultingFileTo)        
-        shutil.move(newPath,pathToMoveResultingFileTo)
+    if not os.getcwd() == newFilePath:
+        subprocess.call('trash "' + subDirName + '"', shell=True)
 
+    #newPath = "".join(['/' + i for i in  subDirName.split("/")[1:-1]]) + '/'
+    
+    #if not engMovieName:
+    #    os.rename(subDirName,movieName)
+    #    newPath += movieName
+    #else:
+    #    os.rename(subDirName,engMovieName)
+    #    newPath += engMovieName
+    
     # Disconnect from opensubtitles.org server, then exit
     server.LogOut(token)
     sys.exit(0)
