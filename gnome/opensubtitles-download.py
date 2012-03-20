@@ -474,10 +474,10 @@ try:
     #subprocess.call('trash ' + filesToTrash, shell=True)
     
     # Rename parent directory
-    if os.getcwd() == subDirName:
-        os.chdir(os.pardir)
-    if not os.getcwd() == newFilePath:
-        subprocess.call('trash "' + subDirName + '"', shell=True)
+        if os.getcwd() == subDirName:
+            os.chdir(os.pardir)
+        if not os.getcwd() == newFilePath:
+            subprocess.call('trash "' + subDirName + '"', shell=True)
 
     #newPath = "".join(['/' + i for i in  subDirName.split("/")[1:-1]]) + '/'
     
