@@ -302,9 +302,20 @@ try:
                 if subFormat == 'srt':
                     pass
                 elif subFormat == 'sub':
-                    #pouzij rsplit podle } a bude
-                    #a kdyz uset cancels merge, tak nepresouvej adresare
-                    #subprocess.call(['zenity', '--error', '--text=Subtitle in format ' + 'sub' + '. Check the program.'])
+                    
+                    # repair {123}{456} blabla {78}{90} blabla\n
+                    f = open(subPath,"r") 
+                    allSubs = f.readlines()
+                    for sub in allSubs[:]:
+                        splitSub = sub.rsplit('{')
+                        if len(splitSub) > 4:
+                            allSubs.insert(allSubs.index(sub),'{'.join(splitSub[:-2]) + '\n')
+                            allSubs.insert(allSubs.index(sub),'{' + '{'.join(splitSub[-2:]))
+                            allSubs.remove(sub)
+                    f = open(subPath,"w")
+                    f.write(''.join(allSubs))
+                    f.close()
+
                     mplayerOutput = subprocess.Popen(("mplayer", "-identify", "-frames", "0", "o-ao", "null", moviePath), stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
                     pattern = re.compile(r'(\d{2}.\d{3}) fps')
                     fps = pattern.search(mplayerOutput).groups()[0]
