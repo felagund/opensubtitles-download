@@ -302,6 +302,8 @@ try:
                 if subFormat == 'srt':
                     pass
                 elif subFormat == 'sub':
+                    #pouzij rsplit podle } a bude
+                    #a kdyz uset cancels merge, tak nepresouvej adresare
                     #subprocess.call(['zenity', '--error', '--text=Subtitle in format ' + 'sub' + '. Check the program.'])
                     mplayerOutput = subprocess.Popen(("mplayer", "-identify", "-frames", "0", "o-ao", "null", moviePath), stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()[0]
                     pattern = re.compile(r'(\d{2}.\d{3}) fps')
@@ -329,7 +331,7 @@ try:
                                 delta += 13 - len(editedSubsList)
 
                 # Delete some automatically inserted subtitles
-                deleteLines = ['Najlepsi zazitok z pozerania - Open Subtitles MKV Player\n','[ENGLISH]\n','Best watched using Open Subtitles MKV Player\n','FDb.cz - navstivte svet filmu\n','Subtitles downloaded from www.OpenSubtitles.org\n','Download Movie Subtitles Searcher from www.OpenSubtitles.org\n']
+                deleteLines = ['Najlepsi zazitok z pozerania - Open Subtitles MKV Player\n','[ENGLISH]\n','Best watched using Open Subtitles MKV Player\n','FDb.cz - navstivte svet filmu\n','Subtitles downloaded from www.OpenSubtitles.org\n','Download Movie Subtitles Searcher from www.OpenSubtitles.org\n','www.titulky.com\n','WWW:TITULKY.COM\n']
                 deleteLinesIndexes = [allSubs.index(i) for i in allSubs if i in deleteLines]
                 delta = 0
                 for index in deleteLinesIndexes:
@@ -389,20 +391,26 @@ try:
     # If it takes too long, try again and again and then fail.
     # This will be much easier in 3.3, will come out in August: 
     # subprocess will get timout method http://bugs.python.org/issue5673
-    def handler(signum, frame):
-        raise IOError("IMDb is taking too long")
-    signal.signal(signal.SIGALRM, handler)
     
-    imdbMovie = None
-    for i in range(3):
-        if imdbMovie:
-            break
-        signal.alarm(7) # not sure why we do not need an try: except: here but it works without it too
+    ###def handler(signum, frame):
+    ###    raise IOError("IMDb is taking too long")
+    ###signal.signal(signal.SIGALRM, handler)
+    try: 
         imdbMovie = imdb.IMDb().get_movie(subtitlesList['data'][0]['IDMovieImdb'])
-    signal.alarm(0)
-    if not imdbMovie:    
-        subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
-        sys.exit(1)
+    except:
+        print 1
+
+    
+    ###imdbMovie = None
+    ###for i in range(3):
+    ###  ###  if imdbMovie:
+    ###        break
+    ###    signal.alarm(7) # not sure why we do not need an try: except: here but it works without it too
+    ###    imdbMovie = imdb.IMDb().get_movie(subtitlesList['data'][0]['IDMovieImdb'])
+    ###signal.alarm(0)
+    ###if not imdbMovie:    
+    ###    subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
+    ###    sys.exit(1)
     
     movieLanguageFull = imdbMovie.get('languages')[0]
     
@@ -449,35 +457,40 @@ try:
     
     # Finally merge the file    
     mkvFileName = subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv'
-    subprocess.call('mkvmerge -o "' + mkvFileName + '" --language 0:' + movieLanguageISO + ' --forced-track 0:no --language 1:' + movieLanguageISO + ' --forced-track 1:no -a 1 -d 0 -S -T --no-global-tags --no-chapters "' + moviePath + '" ' + mmgSubArgs + '--track-order ' + trackOrder + '  | stdbuf -i0 -o0 -e0 tr \'\\r\' \'\\n\' |   stdbuf -i0 -o0 -e0 grep \'Progress:\' | stdbuf -i0 -e0  -o0 sed -e \'s/Progress: //\' -e \'s/%//\' -e \'s/\(....\)\(..\)\(..\)/\1-\^C\3/\' | zenity --width=480 --progress --auto-close --percentage=0 --text="Merging..." --title="Merging subtitles with video, please wait..."', shell=True)
     
-    if not engMovieName:
-        movieDirName = movieName
-    else:
-        movieDirName = engMovieName
+    move = True
+    try:
+        subprocess.check_output('mkvmerge -o "' + mkvFileName + '" --language 0:' + movieLanguageISO + ' --forced-track 0:no --language 1:' + movieLanguageISO + ' --forced-track 1:no -a 1 -d 0 -S -T --no-global-tags --no-chapters "' + moviePath + '" ' + mmgSubArgs + '--track-order ' + trackOrder + '  | stdbuf -i0 -o0 -e0 tr \'\\r\' \'\\n\' |   stdbuf -i0 -o0 -e0 grep \'Progress:\' | stdbuf -i0 -e0  -o0 sed -e \'s/Progress: //\' -e \'s/%//\' -e \'s/\(....\)\(..\)\(..\)/\1-\^C\3/\' | zenity --width=480 --progress --auto-close --percentage=0 --text="Merging..." --title="Merging subtitles with video, please wait..."',stderr=subprocess.STDOUT,  shell=True)        
+    except subprocess.CalledProcessError:
+        move = False
+    if move:
+        if not engMovieName:
+            movieDirName = movieName
+        else:
+            movieDirName = engMovieName
 
-    # Move resulting file to a specified directory
-    newFilePath = pathToMoveResultingFileTo + movieDirName + '/'
-    if pathToMoveResultingFileTo:
-        if not os.path.exists(pathToMoveResultingFileTo):
-            os.makedirs(pathToMoveResultingFileTo)
-        if not os.path.exists(newFilePath):
-            os.makedirs(newFilePath)
-        if os.path.exists(newFilePath + mkvFileName.rsplit('/')[-1]):
-            subprocess.call('trash "' + newFilePath + mkvFileName.rsplit('/')[-1] + '"', shell=True)
-        shutil.move(mkvFileName,newFilePath)
-    
-    # Clean up after ourselves
-    # filesToTrash = '"' + '" "'.join(subPaths.values()) + '"'
-    # if os.path.exists(mkvFileName):
-    #    filesToTrash += ' "' + moviePath + '"'
-    #subprocess.call('trash ' + filesToTrash, shell=True)
-    
-    # Rename parent directory
-        if os.getcwd() == subDirName:
-            os.chdir(os.pardir)
-        if not os.getcwd() == newFilePath:
-            subprocess.call('trash "' + subDirName + '"', shell=True)
+        # Move resulting file to a specified directory
+        newFilePath = pathToMoveResultingFileTo + movieDirName + '/'
+        if pathToMoveResultingFileTo:
+            if not os.path.exists(pathToMoveResultingFileTo):
+                os.makedirs(pathToMoveResultingFileTo)
+            if not os.path.exists(newFilePath):
+                os.makedirs(newFilePath)
+            if os.path.exists(newFilePath + mkvFileName.rsplit('/')[-1]):
+                subprocess.call('trash "' + newFilePath + mkvFileName.rsplit('/')[-1] + '"', shell=True)
+            shutil.move(mkvFileName,newFilePath)
+        
+        # Clean up after ourselves
+        # filesToTrash = '"' + '" "'.join(subPaths.values()) + '"'
+        # if os.path.exists(mkvFileName):
+        #    filesToTrash += ' "' + moviePath + '"'
+        #subprocess.call('trash ' + filesToTrash, shell=True)
+        
+        # Rename parent directory
+            if os.getcwd() == subDirName:
+                os.chdir(os.pardir)
+            if not os.getcwd() == newFilePath:
+                subprocess.call('trash "' + subDirName + '"', shell=True)
 
     #newPath = "".join(['/' + i for i in  subDirName.split("/")[1:-1]]) + '/'
     
