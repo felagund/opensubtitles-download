@@ -388,7 +388,7 @@ try:
                 langFound = '\n\nHowever, following subtitles were downloaded:\n'
                 for lang in subFound:
                     langFound += languages[lang] + '\n' 
-        movieFileName = moviePath.rsplit('/', -1)
+        movieFileName = moviePath.rsplit('/')
         subprocess.call(['zenity', '--info', '--title=No subtitles found', '--text=No subtitles found' + langNotFound + 'for this video:\n' + movieFileName[-1] + langFound])
     
     # Merge subtitle files with the video
@@ -471,7 +471,7 @@ try:
     
     move = True
     try:
-        subprocess.check_output('mkvmerge -o "' + mkvFileName + '" --language 0:' + movieLanguageISO + ' --forced-track 0:no --language 1:' + movieLanguageISO + ' --forced-track 1:no -a 1 -d 0 -S -T --no-global-tags --no-chapters "' + moviePath + '" ' + mmgSubArgs + '--track-order ' + trackOrder + '  | stdbuf -i0 -o0 -e0 tr \'\\r\' \'\\n\' |   stdbuf -i0 -o0 -e0 grep \'Progress:\' | stdbuf -i0 -e0  -o0 sed -e \'s/Progress: //\' -e \'s/%//\' -e \'s/\(....\)\(..\)\(..\)/\1-\^C\3/\' | zenity --width=480 --progress --auto-close --percentage=0 --text="Merging..." --title="Merging subtitles with video, please wait..."',stderr=subprocess.STDOUT,  shell=True)        
+        subprocess.check_output('mkvmerge -o "' + mkvFileName + '" --language 0:' + movieLanguageISO + ' --forced-track 0:no --language 1:' + movieLanguageISO + ' --forced-track 1:no -a 1 -d 0 -S -T --no-global-tags --no-chapters "' + moviePath + '" ' + mmgSubArgs + '--track-order ' + trackOrder + '  | stdbuf -i0 -o0 -e0 tr \'\\r\' \'\\n\' |   stdbuf -i0 -o0 -e0 grep \'Progress:\' | stdbuf -i0 -e0  -o0 sed -e \'s/Progress: //\' -e \'s/%//\' -e \'s/\(....\)\(..\)\(..\)/\1-\^C\3/\' | zenity --width=480 --progress --auto-close --percentage=0 --text="Merging..." --title="Merging ' + movieFileName[-1] + 'with subtitles, please wait..."',stderr=subprocess.STDOUT,  shell=True)        
     except subprocess.CalledProcessError:
         move = False
     if move:
