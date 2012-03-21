@@ -222,6 +222,9 @@ try:
         # Launch the search
         subtitlesList = server.SearchSubtitles(token, searchList)    
         if subtitlesList['data']:
+            # Make everything work even when some subtitles not found
+            subtitlesListNonEmpty = subtitlesList
+
             # Sanitize title strings to avoid parsing errors
             for item in subtitlesList['data']:
                 item['MovieName'] = item['MovieName'].replace('"', '\\"')
@@ -245,7 +248,6 @@ try:
                     subtitleItems += '"' + item['SubFileName'] + '" ' + item['LanguageName'] + ' ' + hearingImpaired + ' ' + CD + ' ' + item['SubFormat']  + ' ' + item['IDMovieImdb'] + ' ' +item['SubDownloadsCnt'] + ' '
                     #if item['SubFileName'][:-3] == os.path.basename(moviePath)[:-3]:
                     #    subtitleSelected = item['SubFileName']
-                    #    break
                     #else:
                     #    subtitleSelected = ''
 
@@ -407,7 +409,7 @@ try:
     ###    raise IOError("IMDb is taking too long")
     ###signal.signal(signal.SIGALRM, handler)
     try: 
-        imdbMovie = imdb.IMDb().get_movie(subtitlesList['data'][0]['IDMovieImdb'])
+        imdbMovie = imdb.IMDb().get_movie(subtitlesListNonEmpty['data'][0]['IDMovieImdb'])
     except:
         print 1
 
@@ -417,7 +419,7 @@ try:
     ###  ###  if imdbMovie:
     ###        break
     ###    signal.alarm(7) # not sure why we do not need an try: except: here but it works without it too
-    ###    imdbMovie = imdb.IMDb().get_movie(subtitlesList['data'][0]['IDMovieImdb'])
+    ###    imdbMovie = imdb.IMDb().get_movie(subtitlesListNonEmpty['data'][0]['IDMovieImdb'])
     ###signal.alarm(0)
     ###if not imdbMovie:    
     ###    subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
@@ -434,7 +436,7 @@ try:
     # Get English title if movie is not in English
     engMovieName = ''
     mkvMovieName = ''
-    movieName = handleArticles(subtitlesList['data'][0]['MovieName'])
+    movieName = handleArticles(subtitlesListNonEmpty['data'][0]['MovieName'])
     if not movieLanguageFull == 'English':
         pickMovieName = 'TRUE "'+ imdbMovie.get('title') + '" "IMDb Title" ' 
         for aka in imdbMovie.get('akas'):
@@ -467,7 +469,7 @@ try:
         trackOrder += ',' + str(index) + ':0' 
     
     # Finally merge the file    
-    mkvFileName = subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesList['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv'
+    mkvFileName = subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesListNonEmpty['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv'
     
     move = True
     try:
