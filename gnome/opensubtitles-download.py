@@ -395,37 +395,37 @@ try:
     
     # Merge subtitle files with the video
     
-    # Ask about the language of the movie
-    #try:
-    #    movieLanguage = subprocess.check_output('zenity --width=200 --height=420  --list --text=Pick\ Language --radiolist --column=Pick --column=Languages TRUE eng FALSE fre FALSE cze FALSE ger FALSE chi FALSE ita FALSE jpn FALSE kor FALSE rus FALSE spa FALSE swe FALSE nor FALSE dan FALSE fin',stderr=subprocess.STDOUT, shell=True  )
-    #except subprocess.CalledProcessError:
-    
     # Get movie title and language from IMDB
     # If it takes too long, try again and again and then fail.
-    # This will be much easier in 3.3, will come out in August: 
-    # subprocess will get timout method http://bugs.python.org/issue5673
-    
-    ###def handler(signum, frame):
-    ###    raise IOError("IMDb is taking too long")
-    ###signal.signal(signal.SIGALRM, handler)
-    try: 
-        imdbMovie = imdb.IMDb().get_movie(subtitlesListNonEmpty['data'][0]['IDMovieImdb'])
-    except:
-        print 1
+    # Alternative approach:
+    #> Anyway, if you can try to put _before_ IMDb is imported/instanced this:
+    #>   import socket
+    #>   socket.setdefaulttimeout(10)
 
-    
-    ###imdbMovie = None
-    ###for i in range(3):
-    ###  ###  if imdbMovie:
-    ###        break
-    ###    signal.alarm(7) # not sure why we do not need an try: except: here but it works without it too
-    ###    imdbMovie = imdb.IMDb().get_movie(subtitlesListNonEmpty['data'][0]['IDMovieImdb'])
-    ###signal.alarm(0)
-    ###if not imdbMovie:    
-    ###    subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
-    ###    sys.exit(1)
-    
-    movieLanguageFull = imdbMovie.get('languages')[0]
+    def handler(signum, frame):
+        print "Forever is over!"
+        raise Exception("end of time")
+    signal.signal(signal.SIGALRM, handler)
+    for i in range(3):
+        signal.alarm(7)
+        try: 
+            imdbMovie = imdb.IMDb().get_movie(subtitlesListNonEmpty['data'][0]['IDMovieImdb'])
+            signal.alarm(0)
+            timedOut = False
+            movieLanguageFull = imdbMovie.get('languages')[0]
+            break
+        except Exception, exc:
+            subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
+            timedOut = True
+    # Ask about the language of the movie, since imdbpy stalled
+    if timedOut:            
+        try:
+            # subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
+            movieLanguageFull = subprocess.check_output('zenity --width=200 --height=420  --list --text=Pick\ Language --radiolist --column=Pick --column=Languages TRUE eng FALSE fre FALSE cze FALSE ger FALSE chi FALSE ita FALSE jpn FALSE kor FALSE rus FALSE spa FALSE swe FALSE nor FALSE dan FALSE fin',stderr=subprocess.STDOUT, shell=True  )
+        except subprocess.CalledProcessError:
+            # The user pressed cancel, logout and exit
+            server.LogOut(token)
+            sys.exit(1)
     
     # Get three-letter ISO code
     for lang in languages:
