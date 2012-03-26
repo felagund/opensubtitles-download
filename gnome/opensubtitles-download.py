@@ -398,27 +398,21 @@ try:
     # Get movie title and language from IMDB
     # If it takes too long, try again and again and then fail.
     # Alternative approach:
-    #> Anyway, if you can try to put _before_ IMDb is imported/instanced this:
-    #>   import socket
-    #>   socket.setdefaulttimeout(10)
 
-    def handler(signum, frame):
-        print "Forever is over!"
-        raise Exception("end of time")
-    signal.signal(signal.SIGALRM, handler)
+    # def handler(signum, frame):
+    #    print "Forever is over!"
+    #    raise Exception("end of time")
+    # signal.signal(signal.SIGALRM, handler)
     for i in range(3):
-        signal.alarm(7)
         try: 
-            imdbMovie = imdb.IMDb().get_movie(subtitlesListNonEmpty['data'][0]['IDMovieImdb'])
-            signal.alarm(0)
+            imdbMovie = imdb.IMDb(timeout=7,reraiseExceptions=True).get_movie(subtitlesListNonEmpty['data'][0]['IDMovieImdb'])
             timedOut = False
-            movieLanguageFull = imdbMovie.get('languages')[0]
             break
-        except Exception, exc:
-            subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
+        except:
+            subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy statusi and edit script no to display this message'])
             timedOut = True
     # Ask about the language of the movie, since imdbpy stalled
-    if timedOut:            
+    if timedOut:          
         try:
             # subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
             movieLanguageFull = subprocess.check_output('zenity --width=200 --height=420  --list --text=Pick\ Language --radiolist --column=Pick --column=Languages TRUE eng FALSE fre FALSE cze FALSE ger FALSE chi FALSE ita FALSE jpn FALSE kor FALSE rus FALSE spa FALSE swe FALSE nor FALSE dan FALSE fin',stderr=subprocess.STDOUT, shell=True  )
