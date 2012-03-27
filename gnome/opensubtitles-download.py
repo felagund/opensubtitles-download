@@ -327,10 +327,11 @@ try:
                     subPaths[lang]=subPath
                 else:
                     subprocess.call(['zenity', '--error', '--text=Subtitle in format ' + subFormat + '. Expect trouble.'])
+
                 # Edit subtitles
                 f = open(subPath,"r")
                 allSubs =  f.readlines()
-                
+
                 # Check whether we don't have bad subtitles without timecodes
                 delta = 0                
                 for i in [i for i in allSubs]:
@@ -344,20 +345,25 @@ try:
                                 delta += 13 - len(editedSubsList)
 
                 # Delete some automatically inserted subtitles
-                deleteLines = ['Najlepsi zazitok z pozerania - Open Subtitles MKV Player\n','[ENGLISH]\n','Best watched using Open Subtitles MKV Player\n','FDb.cz - navstivte svet filmu\n','Subtitles downloaded from www.OpenSubtitles.org\n','Download Movie Subtitles Searcher from www.OpenSubtitles.org\n','www.titulky.com\n','WWW:TITULKY.COM\n']
+                deleteLines = ['Najlepsi zazitok z pozerania - Open Subtitles MKV Player\n','[ENGLISH]\n','Best watched using Open Subtitles MKV Player\n','FDb.cz - navstivte svet filmu\n','Subtitles downloaded from www.OpenSubtitles.org\n','Download Movie Subtitles Searcher from www.OpenSubtitles.org\n','www.titulky.com\n','WWW:TITULKY.COM\n','SDI Media Group\n','De Aldisio, Agence Press.\n']
+                deleteLinesDouble = ['SDI Media Group\n'] # This is a two line junk subtitle
                 deleteLinesIndexes = [allSubs.index(i) for i in allSubs if i in deleteLines]
                 delta = 0
                 for index in deleteLinesIndexes:
-                    index -= delta 
-                    allSubs = allSubs[0 : index-2] + allSubs[index+2:]
-                    delta +=4
-                
+                    index -= delta
+                    if allSubs[index] in deleteLinesDouble:
+                        oneOrTwo = 1
+                    else:
+                        oneOrTwo = 0
+                    allSubs = allSubs[0 : index-2-oneOrTwo] + allSubs[index+2:]
+                    delta +=4+oneOrTwo
+
                 # Remove blank lines in the end and in the beginning
                 while allSubs[0] == '\n':
                     allSubs = allSubs[1:]
                 while allSubs[-1] == ['\n']:
                     allSubs = allSubs[:-1]
-                    
+
                 # Edit beginning and end for signatures and so on
                 startEndOfSubs = allSubs[:12] + ['=================<88>=================\n'] + allSubs[-12:]
                 editedSubsList = editSubtitles(startEndOfSubs,'Delete cruft from beginning and end')                    
@@ -406,9 +412,10 @@ try:
     for i in range(3):
         try: 
             imdbMovie = imdb.IMDb(timeout=7,reraiseExceptions=True).get_movie(subtitlesListNonEmpty['data'][0]['IDMovieImdb'])
+            movieLanguageFull = imdbMovie.get('languages')[0]
             timedOut = False
             break
-        except:
+        except imdb.IMDbDataAccessError:
             subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy statusi and edit script no to display this message'])
             timedOut = True
     # Ask about the language of the movie, since imdbpy stalled
