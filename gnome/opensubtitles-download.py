@@ -481,7 +481,7 @@ try:
         if not engMovieName:
             movieDirName = movieName
         else:
-            movieDirName = engMovieName
+            movieDirName = engMovieName + ' - ' + movieName
 
         # Move resulting file to a specified directory
         newFileDirPath = pathToMoveResultingFileTo + movieDirName + '/'
@@ -504,7 +504,7 @@ try:
         #    filesToTrash += ' "' + moviePath + '"'
         #subprocess.call('trash ' + filesToTrash, shell=True)
         
-        # Rename parent directory
+        # Trash the original directory
             if os.getcwd() == subDirName:
                 os.chdir(os.pardir)
             if not os.getcwd() == newFilePath:
