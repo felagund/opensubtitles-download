@@ -3,7 +3,6 @@
 
 #umej mergnout titulky stahnute z titulky com
 #postarej se o nove imdb pole
-#po prehrati flimu se zeptej, zda je to ok (troch umagie podle toho, jake titulky jsme nasli) a zacni stahovat titulky podle jmena
 
 # OpenSubtitles download / Gnome edition
 # Version 1.1
@@ -211,19 +210,29 @@ try:
     movieHash = hashFile(moviePath)
     movieSize = os.path.getsize(moviePath)
     cont = True
-    while cont:
+    searchBy = {}
+    badSubtitles = []
+    moviePathTemp = 'Ladri di biciclette'
+    for lang in SubLanguageID:
+        searchBy[lang] = 'Hash'  
+    languagesSearched = SubLanguageID
+    subNotFound = []
+    goodSubs = {}
+    subFound = {}
+    subPaths = {}
+    badTiming = ''
+    while True:
         
         # Search for available subtitles (using file hash and size)
-        subNotFound = []
-        subFound = []
-        subPaths = {}
-        for lang in SubLanguageID:
+        for lang in languagesSearched[:]:
+            languagesSearched = []
             searchList = []
-            searchList.append({'sublanguageid':lang, 'moviehash':movieHash, 'moviebytesize':str(movieSize)}) # Search movie by file hash
-           
+            # Search movie by file hash
+            if searchBy[lang] == 'Hash': 
+                searchList.append({'sublanguageid':lang, 'moviehash':movieHash, 'moviebytesize':str(movieSize)})
             # Search for available subtitles (using file name)
-            #searchList.append({'sublanguageid':lang, 'query':moviePath}) # Search movie by file name
-           
+            elif searchBy[lang] == 'Name':
+                searchList.append({'sublanguageid':lang, 'query':moviePathTemp}) # Search movie by file name
             # Launch the search
             subtitlesList = server.SearchSubtitles(token, searchList)    
             if subtitlesList['data']:
@@ -239,24 +248,20 @@ try:
                 if len(subtitlesList['data']) != 1:
                     subtitleItems = ''
                     for item in subtitlesList['data']:
-                        # Give the user some additional information about the subtitles
-                        hearingImpaired = ''
-                        if item['SubHearingImpaired'] == '1':
-                            hearingImpaired += '✓'
-                        else: 
-                            hearingImpaired += '\'\''
-                        CD = ''
-                        if int(item['SubSumCD']) > 1:
-                            CD += str(item['SubActualCD']) + '/' + str(item['SubSumCD'])
-                        else:
-                            CD += '\'\''                    
-                        subtitleItems += '"' + item['SubFileName'] + '" ' + item['LanguageName'] + ' ' + hearingImpaired + ' ' + CD + ' ' + item['SubFormat']  + ' ' + item['IDMovieImdb'] + ' ' +item['SubDownloadsCnt'] + ' '
-                        #if item['SubFileName'][:-3] == os.path.basename(moviePath)[:-3]:
-                        #    subtitleSelected = item['SubFileName']
-                        #else:
-                        #    subtitleSelected = ''
+                        if not item['IDSubtitleFile'] in badSubtitles:
+                            # Give the user some additional information about the subtitles
+                            hearingImpaired = ''
+                            if item['SubHearingImpaired'] == '1':
+                                hearingImpaired += '✓'
+                            else: 
+                                hearingImpaired += '\'\''
+                            CD = ''
+                            if int(item['SubSumCD']) > 1:
+                                CD += str(item['SubActualCD']) + '/' + str(item['SubSumCD'])
+                            else:
+                                CD += '\'\''                    
+                            subtitleItems += '"' + item['SubFileName'] + '" ' + item['LanguageName'] + ' ' + hearingImpaired + ' ' + CD + ' ' + item['SubFormat']  + ' ' + item['IDMovieImdb'] + ' ' +item['SubDownloadsCnt'] + ' '
 
-                    #if not subtitleSelected:
                     process_subtitleSelection = subprocess.Popen('zenity --width=1280 --height=480 --list --title="' + os.path.basename(moviePath) + '" --column="Available subtitles" --column="Language" --column="Hearing impaired" --column="CD" --column="Format" --column="IMDb ID" --column="Download count" '  + subtitleItems, shell=True, stdout=subprocess.PIPE)
                     subtitleSelected = str(process_subtitleSelection.communicate()[0]).strip('\n')
                     resp = process_subtitleSelection.returncode
@@ -274,16 +279,19 @@ try:
                             subIndex = index
                         else:
                             index += 1
-                    subFound.append(subtitlesList['data'][subIndex]['SubLanguageID'])
+                    subFound[lang] = subtitlesList['data'][subIndex]['SubLanguageID']
+                    goodSubs[lang] = subtitlesList['data'][subIndex]['SubLanguageID'] # Assume subtitles are good
+                    badSubtitles.append(subtitlesList['data'][subIndex]['IDSubtitleFile']) # assume the subtitles are bad
+
                     subURL = subtitlesList['data'][subIndex]['SubDownloadLink']
-                    subFileName = os.path.basename(moviePath)[:-4] + '_' + subFound[-1] + subtitlesList['data'][subIndex]['SubFileName'][-4:]
+                    subFileName = os.path.basename(moviePath)[:-4] + '_' + subFound[lang] + subtitlesList['data'][subIndex]['SubFileName'][-4:]
                     subFileName = subFileName.replace('"', '\\"')
                     subFileName = subFileName.replace("'", "\'")
                     subPath=subDirName + '/' + subFileName
                     subPaths[lang]=subPath
 
                     # Convert subtitles to unicode
-                    if languages[subFound[-1]] == 'Czech':
+                    if languages[subFound[lang]] == 'Czech':
                         encConv = '| enconv -L czech -x utf8'
                     else:
                         encConv = ''
@@ -293,7 +301,7 @@ try:
                     process_subDownload = subprocess.call('(wget -O - ' + subURL + ' | gunzip ' + encConv + ' | dos2unix | mac2unix > "' + subPath + '") 2>&1 | zenity --progress --auto-close --pulsate --title="Downloading subtitle, please wait..." --text="Downloading subtitle for \'' + subtitlesList['data'][0]['MovieName'] + '\' : "', shell=True)
                     
                     # Convert English subtitles to unicode (only if the use some special character, otherwise stay ascii which we do not mind)
-                    if languages[subFound[-1]] == 'English':
+                    if languages[subFound[lang]] == 'English':
                         f = open(subPath,"r").read()
                         enc = chardet.detect(f)['encoding']
                         tmp = f.decode(enc)
@@ -350,8 +358,8 @@ try:
                                     delta += 13 - len(editedSubsList)
 
                     # Delete some automatically inserted subtitles
-                    deleteLines = ['Najlepsi zazitok z pozerania - Open Subtitles MKV Player\n','[ENGLISH]\n','Best watched using Open Subtitles MKV Player\n','FDb.cz - navstivte svet filmu\n','Subtitles downloaded from www.OpenSubtitles.org\n','Download Movie Subtitles Searcher from www.OpenSubtitles.org\n','www.titulky.com\n','WWW:TITULKY.COM\n','SDI Media Group\n','De Aldisio, Agence Press.\n']
-                    deleteLinesDouble = ['SDI Media Group\n'] # This is a two line junk subtitle
+                    deleteLines = ['Najlepsi zazitok z pozerania - Open Subtitles MKV Player\n','[ENGLISH]\n','Best watched using Open Subtitles MKV Player\n','FDb.cz - navstivte svet filmu\n','Subtitles downloaded from www.OpenSubtitles.org\n','Download Movie Subtitles Searcher from www.OpenSubtitles.org\n','www.titulky.com\n','WWW:TITULKY.COM\n','SDI Media Group\n','De Aldisio, Agence Press.\n','Video SubtitIes By\n','www.OpenSubtitles.org\n','www.OpenSubtitles.org\n']
+                    deleteLinesDouble = ['SDI Media Group\n','Video Subtitles By\n'] # This is a two line junk subtitle
                     deleteLinesIndexes = [allSubs.index(i) for i in allSubs if i in deleteLines]
                     delta = 0
                     for index in deleteLinesIndexes:
@@ -382,127 +390,149 @@ try:
                     if process_subDownload != 0:
                         subprocess.call(['zenity', '--error', '--text=An error occurred while downloading or writing the selected subtitle.'])
             else:
-                
-                # Behave nicely if user is searching for multiple languages at once
-                langLookedFor = re.split(r"\s*,\s*", lang)
-                for l in langLookedFor:
-                    subNotFound.append(l)
-
-        # Print a message if some/all subtitles not found
-        movieFileName = moviePath.rsplit('/')
-        if subNotFound:
-            langFound = ''
-            # Only list languages if more languages are downloaded
-            langNotFound = ''
-            if len(SubLanguageID) > 1 or len(langLookedFor) > 1:
-                langNotFound = ' in:\n'
-                for lang in subNotFound:
-                    langNotFound += languages[lang] + '\n'
-                if subFound:
-                    langFound = '\n\nHowever, following subtitles were downloaded:\n'
-                    for lang in subFound:
-                        langFound += languages[lang] + '\n' 
-            subprocess.call(['zenity', '--info', '--title=No subtitles found', '--text=No subtitles found' + langNotFound + 'for this video:\n' + movieFileName[-1] + langFound])
-        
-        # Merge subtitle files with the video
-        
-        # Get movie title and language from IMDB
-        # If it takes too long, try again and again and then fail.
-        # Alternative approach:
-
-        # def handler(signum, frame):
-        #    print "Forever is over!"
-        #    raise Exception("end of time")
-        # signal.signal(signal.SIGALRM, handler)
-        for i in range(3):
-            try: 
-                imdbMovie = imdb.IMDb(timeout=7,reraiseExceptions=True).get_movie(subtitlesListNonEmpty['data'][0]['IDMovieImdb'])
-                movieLanguageFull = imdbMovie.get('languages')[0]
-                timedOut = False
-                break
-            except imdb.IMDbDataAccessError:
-                #subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy statusi and edit script no to display this message'])
-                timedOut = True
-        # Ask about the language of the movie, since imdbpy stalled
-        if timedOut:          
+                if searchBy[lang] == 'Hash':
+                    searchBy[lang] = 'Name'
+                    languagesSearched.append(lang)
+                else:
+                    searchBy[lang] = None
+                    # Behave nicely if user is searching for multiple languages at once
+                    langLookedFor = re.split(r"\s*,\s*", lang)
+                    for l in langLookedFor:
+                        subNotFound.append(l)
+        if languagesSearched:
+            continue
+       
+        # Check output and decide what to do next
+        subprocess.call(['mplayer', moviePath])
+        try:    
+            subprocess.check_output('zenity --question --title="Is everything alright?" --text="Were ' + str(len(SubLanguageID)) + ' subtitles downloaded and are they in sync?" --ok-label=Yes --cancel-label=No',stderr=subprocess.STDOUT, shell=True)
+            break
+        except subprocess.CalledProcessError:
             try:
-                # subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
-                movieLanguageFull = subprocess.check_output('zenity --width=200 --height=420  --list --text=Pick\ Language --radiolist --column=Pick --column=Languages TRUE eng FALSE fre FALSE cze FALSE ger FALSE chi FALSE ita FALSE jpn FALSE kor FALSE rus FALSE spa FALSE swe FALSE nor FALSE dan FALSE fin',stderr=subprocess.STDOUT, shell=True  )
-            except subprocess.CalledProcessError:
-                # The user pressed cancel, logout and exit
-                server.LogOut(token)
-                sys.exit(1)
-        
-        # Get three-letter ISO code
-        for lang in languages:
-            if languages[lang] == movieLanguageFull and len(lang) == 3: 
-                movieLanguageISO = lang
 
-        
-        # Get English title if movie is not in English
-        engMovieName = ''
-        engMovieNameTemp = ''
-        mkvMovieName = ''
-        movieName = handleArticles(subtitlesListNonEmpty['data'][0]['MovieName'])
-        if not movieLanguageFull == 'English':
-            pickMovieName = 'TRUE "'+ imdbMovie.get('title') + '" "IMDb Title" ' 
-            for aka in imdbMovie.get('akas'):
-                if 'English' in aka.split('::')[1]:
-                    engMovieName = handleArticles(aka.split('::')[0])
+                # Only ask which subtitles are out of sync if there are more than one
+                if len(goodSubs.keys()) > 1: 
+                    a = []
+                    [a.extend(list(itertools.combinations(goodSubs.values(),i+1))) for i in range(len(goodSubs))]
+                    b = [list(i) for i in a]
+                    d = 'TRUE'
+                    for i in b:
+                        d += ' "' + str(i).strip('[]').replace("'","") + '" "'
+                        for j in i:
+                            y = j.split(',')
+                            d += ''.join([languages[x] if x == y[-1] else languages[x] + ' or ' for x in y])
+                            if not j == i[-1]:
+                                d += ' and '
+                            else:
+                                d += '" FALSE '
+                    badTiming = subprocess.check_output('zenity --width=720 --height=560  --list --text="What is wrong?" --radiolist --column=Pick --column=Combinations --column="Language(s) out of synci" ' + d + 'False "I made a mistake, all subtitles are bad"',stderr=subprocess.STDOUT, shell=True).strip('\n')
+                if not badTiming == 'False':
+                    languagesSearched = badTiming.replace(' ','').split(',')
+                    for i in goodSubs.keys():
+                        if not i in languagesSearched:
+                            del goodSubs[i]
+                else:
+                    languagesSearched = SubLangadeID
+            except subprocess.CalledProcessError:
                     break
-                else: 
-                    pickMovieName +=   'FALSE "' + '" "'.join(aka.split('::')) + '" '
-            if not engMovieName:  
+    sys.exit(0)
+    # Print a message if some/all subtitles not found
+    movieFileName = moviePath.rsplit('/')
+    if subNotFound:
+        langFound = ''
+        # Only list languages if more languages are downloaded
+        langNotFound = ''
+        if len(SubLanguageID) > 1 or len(langLookedFor) > 1:
+            langNotFound = ' in:\n'
+            for lang in subNotFound:
+                langNotFound += languages[lang] + '\n'
+            if subFound:
+                langFound = '\n\nHowever, following subtitles were downloaded:\n'
+                for lang in subFound:
+                    langFound += languages[lang] + '\n' 
+        subprocess.call(['zenity', '--info', '--title=No subtitles found', '--text=No subtitles found' + langNotFound + 'for this video:\n' + movieFileName[-1] + langFound])
+    
+    # Merge subtitle files with the video
+    
+    # Get movie title and language from IMDB
+    # If it takes too long, try again and again and then fail.
+
+    for i in range(3):
+        try: 
+            imdbMovie = imdb.IMDb(timeout=7,reraiseExceptions=True).get_movie(subtitlesListNonEmpty['data'][0]['IDMovieImdb'])
+            movieLanguageFull = imdbMovie.get('languages')[0]
+            timedOut = False
+            break
+        except imdb.IMDbDataAccessError:
+            timedOut = True
+
+    # Ask about the language of the movie, since imdbpy stalled
+    if timedOut:          
+        try:
+            # subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
+            movieLanguageFull = subprocess.check_output('zenity --width=200 --height=420  --list --text=Pick\ Language --radiolist --column=Pick --column=Languages TRUE eng FALSE fre FALSE cze FALSE ger FALSE chi FALSE ita FALSE jpn FALSE kor FALSE rus FALSE spa FALSE swe FALSE nor FALSE dan FALSE fin',stderr=subprocess.STDOUT, shell=True  )
+        except subprocess.CalledProcessError:
+            # The user pressed cancel, logout and exit
+            server.LogOut(token)
+            sys.exit(1)
+    
+    # Get three-letter ISO code
+    for lang in languages:
+        if languages[lang] == movieLanguageFull and len(lang) == 3: 
+            movieLanguageISO = lang
+
+    
+    # Get English title if movie is not in English
+    engMovieName = ''
+    engMovieNameTemp = ''
+    mkvMovieName = ''
+    movieName = handleArticles(subtitlesListNonEmpty['data'][0]['MovieName'])
+    if not movieLanguageFull == 'English':
+        pickMovieName = 'TRUE "'+ imdbMovie.get('title') + '" "IMDb Title" ' 
+        for aka in imdbMovie.get('akas'):
+            if 'English' in aka.split('::')[1]:
+                engMovieName = handleArticles(aka.split('::')[0])
+                break
+            else: 
+                pickMovieName +=   'FALSE "' + '" "'.join(aka.split('::')) + '" '
+        if not engMovieName:  
+            try:
+                engMovieNameTemp = subprocess.check_output('zenity --width=720 --height=560  --list --text=Pick\ English\ title --radiolist --column=Pick --column=Titles --column=IMDd\ descriptions ' + pickMovieName + 'FALSE False "No suitable title found"',stderr=subprocess.STDOUT, shell=True)
+            except subprocess.CalledProcessError:
+                pass
+            if engMovieNameTemp == 'False\n':
                 try:
-                    engMovieNameTemp = subprocess.check_output('zenity --width=720 --height=560  --list --text=Pick\ English\ title --radiolist --column=Pick --column=Titles --column=IMDd\ descriptions ' + pickMovieName + 'FALSE False "No suitable title found"',stderr=subprocess.STDOUT, shell=True)
+                    engMovieNameTemp = subprocess.check_output('zenity --entry --text="Enter the title of the movie (articles can be in front)"',stderr=subprocess.STDOUT, shell=True)
                 except subprocess.CalledProcessError:
                     pass
-                if engMovieNameTemp == 'False\n':
-                    try:
-                        engMovieNameTemp = subprocess.check_output('zenity --entry --text="Enter the title of the movie (articles can be in front)"',stderr=subprocess.STDOUT, shell=True)
-                    except subprocess.CalledProcessError:
-                        pass
-                engMovieName = handleArticles(engMovieNameTemp.replace('\n',''))
+            engMovieName = handleArticles(engMovieNameTemp.replace('\n',''))
 
-            if not engMovieName == movieName:
-                mkvMovieName = engMovieName + '-'
+        if not engMovieName == movieName:
+            mkvMovieName = engMovieName + '-'
 
-        # Prepare command for subtitles
-        mmgLangs = ''
-        mmgSubArgs = ''
-        trackOrder = '0:0,0:1'
-        index = 0
-        for lang in subFound:
-            index += 1
-            if lang == subFound[-1]:
-                mmgLangs += lang
-            else:
-                mmgLangs += lang + '_'
-            mmgSubArgs += '--language 0:' + lang + ' --forced-track 0:no -s 0 -D -A -T --no-global-tags --no-chapters ' + '"' + subPaths[lang] + '" '
-            trackOrder += ',' + str(index) + ':0' 
-        
-        # Finally merge the file    
-        mkvFileName = subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesListNonEmpty['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv'
-        
-        try:
-            subprocess.check_output('mkvmerge -o "' + mkvFileName + '" --language 0:' + movieLanguageISO + ' --forced-track 0:no --language 1:' + movieLanguageISO + ' --forced-track 1:no -a 1 -d 0 -S -T --no-global-tags --no-chapters "' + moviePath + '" ' + mmgSubArgs + '--track-order ' + trackOrder + '  | stdbuf -i0 -o0 -e0 tr \'\\r\' \'\\n\' |   stdbuf -i0 -o0 -e0 grep \'Progress:\' | stdbuf -i0 -e0  -o0 sed -e \'s/Progress: //\' -e \'s/%//\' -e \'s/\(....\)\(..\)\(..\)/\1-\^C\3/\' | zenity --width=720 --progress --auto-close --percentage=0 --text="Merging..." --title="Merging ' + movieFileName[-1] + ' with subtitles, please wait..."',stderr=subprocess.STDOUT,  shell=True)        
-            move = True
-        except subprocess.CalledProcessError:
-            move = False
-        cont = False
-
-        subprocess.call(['mplayer', mkvFileName])
-        try:    
-            subprocess.check_output('zenity --question --title="Is everything alright?" --text="Were two subtitles downloaded and are they synced?" --ok-label=Yes --cancel-label=No',stderr=subprocess.STDOUT, shell=True)
-        except subprocess.CalledProcessError:
-            if False:
-                try:
-                    if subNotFound:
-                        
-                    a = subprocess.check_output('zenity --width=720 --height=560  --list --text="What is wrong?" --radiolist --column=Pick --column=Combinations --column=Descriptions ' + pickMovieName + 'TRUE False No suitable title found',stderr=subprocess.STDOUT, shell=True)
-                   #list(itertools.permutations(SubLanguageID,2))
-                except:
-                    pass
+    # Prepare command for subtitles
+    mmgLangs = ''
+    mmgSubArgs = ''
+    trackOrder = '0:0,0:1'
+    index = 0
+    for lang in subFound.values():
+        index += 1
+        if lang == subFound.values()[-1]:
+            mmgLangs += lang
+        else:
+            mmgLangs += lang + '_'
+        mmgSubArgs += '--language 0:' + lang + ' --forced-track 0:no -s 0 -D -A -T --no-global-tags --no-chapters ' + '"' + subPaths[lang] + '" '
+        trackOrder += ',' + str(index) + ':0' 
+    
+    # Finally merge the file    
+    mkvFileName = subDirName + '/' + mkvMovieName.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + subtitlesListNonEmpty['data'][0]['MovieYear'] + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv'
+    
+    try:
+        subprocess.check_output('mkvmerge -o "' + mkvFileName + '" --language 0:' + movieLanguageISO + ' --forced-track 0:no --language 1:' + movieLanguageISO + ' --forced-track 1:no -a 1 -d 0 -S -T --no-global-tags --no-chapters "' + moviePath + '" ' + mmgSubArgs + '--track-order ' + trackOrder + '  | stdbuf -i0 -o0 -e0 tr \'\\r\' \'\\n\' |   stdbuf -i0 -o0 -e0 grep \'Progress:\' | stdbuf -i0 -e0  -o0 sed -e \'s/Progress: //\' -e \'s/%//\' -e \'s/\(....\)\(..\)\(..\)/\1-\^C\3/\' | zenity --width=720 --progress --auto-close --percentage=0 --text="Merging..." --title="Merging ' + movieFileName[-1] + ' with subtitles, please wait..."',stderr=subprocess.STDOUT,  shell=True)        
+        move = True
+    except subprocess.CalledProcessError:
+        move = False
+    
     if move:
         if not engMovieName:
             movieDirName = movieName
@@ -521,6 +551,7 @@ try:
                 subprocess.call('trash "' + newFilePath  + '"', shell=True)
             shutil.move(mkvFileName,newFileDirPath)
             # Play the file to see whether everything is ok
+            """
             # Trash the original directory
             if os.getcwd() == subDirName:
                 os.chdir(os.pardir)
@@ -532,6 +563,7 @@ try:
                     if os.path.exists(newFilePath):
                        filesToTrash += ' "' + moviePath + '"'
                     subprocess.call('trash ' + filesToTrash, shell=True)
+            """
     #newPath = "".join(['/' + i for i in  subDirName.split("/")[1:-1]]) + '/'
     
     #if not engMovieName:
