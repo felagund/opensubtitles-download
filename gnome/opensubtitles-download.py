@@ -95,28 +95,30 @@ def checkFile(path):
     if os.path.isfile(path) == False:
         #subprocess.call(['zenity', '--error', '--text=This is not a file:\n- ' + path])
         return False
-    
+
+    fileMimeType = None
     fileMimeType, encoding = mimetypes.guess_type(path)
-    if fileMimeType == None:
-        fileExtension = path.rsplit('.', 1)
-        if fileExtension[1] not in ['3g2', '3gp', '3gp2', '3gpp', 'ajp', \
-        'asf', 'asx', 'avchd', 'avi', 'bik', 'bix', 'box', 'cam', 'dat', \
-        'divx', 'dmf', 'dv', 'dvr-ms', 'evo', 'flc', 'fli', 'flic', 'flv', \
-        'flx', 'gvi', 'gvp', 'h264', 'm1v', 'm2p', 'm2ts', 'm2v', 'm4e', \
-        'm4v', 'mjp', 'mjpeg', 'mjpg', 'mkv', 'moov', 'mov', 'movhd', 'movie', \
-        'movx', 'mp4', 'mpe', 'mpeg', 'mpg', 'mpv', 'mpv2', 'mxf', 'nsv', \
-        'nut', 'ogg', 'ogm', 'ogv', 'omf', 'ps', 'qt', 'ram', 'rm', 'rmvb', \
-        'swf', 'ts', 'vfw', 'vid', 'video', 'viv', 'vivo', 'vob', 'vro', \
-        'webm', 'wm', 'wmv', 'wmx', 'wrap', 'wvx', 'wx', 'x264', 'xvid']:
-            #subprocess.call(['zenity', '--error', '--text=This file is not a video (unknown mimetype AND invalid file extension):\n- ' + path])
-            return False
-    else:
+    if fileMimeType:
         fileMimeType = fileMimeType.split('/', 1)
-        if fileMimeType[0] != 'video':
-            #subprocess.call(['zenity', '--error', '--text=This file is not a video (unknown mimetype):\n- ' + path])
-            return False
+        if fileMimeType[0] == 'video':
+            return 'Video'
+    fileExtension = path.rsplit('.', 1)
+    if fileExtension[1] in ['3g2', '3gp', '3gp2', '3gpp', 'ajp', \
+    'asf', 'asx', 'avchd', 'avi', 'bik', 'bix', 'box', 'cam', 'dat', \
+    'divx', 'dmf', 'dv', 'dvr-ms', 'evo', 'flc', 'fli', 'flic', 'flv', \
+    'flx', 'gvi', 'gvp', 'h264', 'm1v', 'm2p', 'm2ts', 'm2v', 'm4e', \
+    'm4v', 'mjp', 'mjpeg', 'mjpg', 'mkv', 'moov', 'mov', 'movhd', 'movie', \
+    'movx', 'mp4', 'mpe', 'mpeg', 'mpg', 'mpv', 'mpv2', 'mxf', 'nsv', \
+    'nut', 'ogg', 'ogm', 'ogv', 'omf', 'ps', 'qt', 'ram', 'rm', 'rmvb', \
+    'swf', 'ts', 'vfw', 'vid', 'video', 'viv', 'vivo', 'vob', 'vro', \
+    'webm', 'wm', 'wmv', 'wmx', 'wrap', 'wvx', 'wx', 'x264', 'xvid']:
+        return 'Video'
+    elif fileExtension[1] in ['sub,srt']:
+        return 'Subs'
+    else:
+        #subprocess.call(['zenity', '--error', '--text=This file is not a video (unknown mimetype AND invalid file extension):\n- ' + path])
+        return False
     
-    return True
 
 # ==== Hashing algorithm =======================================================
 # Infos: http://trac.opensubtitles.org/projects/opensubtitles/wiki/HashSourceCodes
@@ -164,6 +166,7 @@ def editSubs(subLanguageEdit,subPathEdit,subFormatEdit,moviePathEdit,subPathsEdi
     else:
         encConv = ''
     # And get rid of bad line ends
+    print 'cat "' + subPathEdit + '"'+ encConv + ' | dos2unix | mac2unix  > temp.temp~ ; cp temp.temp~ "' + subPathEdit + '" ;rm temp.temp~'
     subprocess.call('cat "' + subPathEdit + '"'+ encConv + ' | dos2unix | mac2unix  > temp.temp~ ; cp temp.temp~ "' + subPathEdit + '" ;rm temp.temp~', shell=True)
 
     # Convert English subtitles to unicode (only if the use some special character, otherwise stay ascii which we do not mind)
@@ -258,6 +261,7 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitl
     movieYearDown = ''
     movieHash = hashFile(moviePathDown)
     movieSize = os.path.getsize(moviePathDown)
+    #moviePathDown = os.path.abspath(moviePathDown)
 
     for lang in subNotFoundDown[:]:
         subNotFoundDown = [] # assume we have found all subtitles
@@ -327,6 +331,7 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitl
                 subFileName = subFileName.replace('"', '\\"')
                 subFileName = subFileName.replace("'", "\'")
                 subPath=os.path.dirname(moviePathDown) + '/' + subFileName
+                print subPath
                 subPathsDown[lang]=[subPath,lang]
 
                 # Download and unzip selected subtitles (with progressbar)
@@ -356,25 +361,37 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitl
 def get_lang(list):
     a = []
     for i in list:
-        if not isinstance(i, list):
-            a.append(i)
+        if str(i)[0] == '[':
+            if str(i)[-1] == ']':
+                get_lang(i)
+            else:
+                a.append(i)
         else:
-            get_lang(i)
+            a.append(i)
     return a
 
 
 # ==== Get file(s) path(s) =====================================================
 # Get opensubtitles-download script path, then remove it from argv list
+print argv
 execPath = argv[0]
-argv.pop(0)
+argv.pop(0) 
 moviePath = ''
+subPathExternal = {}
 
 if len(argv) == 0:
     #subprocess.call(['zenity', '--error', '--text=No file selected.'])
     sys.exit(1)
-elif argv[0] == '--file':
-    moviePath = os.path.abspath(argv[1])
-else:
+breaking = False
+for a in argv:
+    if '--file' == a:
+        moviePath = os.path.abspath(argv[argv.index('--file')+1])
+        breaking = True
+        # If another argument is subtitle, we suppose that it is a missing subtitle and that we know the language
+    if '--sub' == a:
+        subPathExternal[argv[argv.index('--sub')+1]] = ''
+        breaking = True
+if not breaking:
     filePathList = []
     moviePathList = []
     
@@ -383,13 +400,15 @@ else:
         filePathList = os.environ['NAUTILUS_SCRIPT_SELECTED_FILE_PATHS'].splitlines()
     except Exception:
         # Fill filePathList (using program arguments)
-        for i in range(len(argv)):
-            filePathList.append(os.path.abspath(argv[i]))
+        for i in argv:
+            filePathList.append(os.path.abspath(i))
     
     # Check file(s) type
-    for i in range(len(filePathList)):
-        if checkFile(filePathList[i]):
-            moviePathList.append(filePathList[i])
+    for i in filePathList:
+        if checkFile(i) == 'Video':
+            moviePathList.append(os.path.abspath(i))
+        elif checkFile(i) == 'Subs':
+            subPathExternal[i] = ''
     
     # If moviePathList is empty, abort
     if len(moviePathList) == 0:
@@ -400,11 +419,12 @@ else:
     moviePathList.pop(0)
     
     # The remaining file(s) are dispatched to new instance(s) of this script
-    for i in range(len(moviePathList)):
-        process_movieDispatched = subprocess.Popen([execPath, '--file', moviePathList[i]])
+    for i in moviePathList:
+        process_movieDispatched = subprocess.Popen([execPath, '--file', i])
 
 # ==== Main program ============================================================
 try:
+    subprocess.call('touch aaa',shell=True)
     try:
         # Connection to opensubtitles.org server
         session = server.LogIn('', '', 'en', 'opensubtitles-download 1.1')
@@ -415,16 +435,42 @@ try:
     except Exception:
         subprocess.call(['zenity', '--error', '--text=Unable to reach opensubtitles.org server. Please check:\n- Your internet connection status\n- www.opensubtitles.org availability'])
         sys.exit(1)
+
     searchBy = {}
     for lang in SubLanguageID:
         searchBy[lang] = 'Hash'  
     badSubtitles = []
     badTiming = ''
     badNumber = 2
+
+    if subPathExternal:
+        if  moviePath.rsplit('.')[-1] == 'mkv':
+            if moviePath.rsplit('.')[-2].rsplit('_')[-1] in languages.keys():
+                pass
+        #elif subPathExternal.rsplit('.')[-1] in ['sub','srt']:
+        #        pass
+    # kdyz je to matroska, udelat fuknci co dela mmg (odectenim jazyku budu vedet, co je to za jazyk)
+    # kdyz je to titulek a jest nemam matrosku, netsahuj titulek pro dany jazyk, uprav ho a dej ho do matrosky
+    # az v kvetnu
+
+
+
     
+    for sub in subPathExternal.keys():
+        possibleLanguages = ''
+        for lang in get_lang(SubLanguageID):
+             possibleLanguages += lang + ' "' + sub  + '" FALSE '
+        # Strip the last 'FALSE'
+        possibleLanguages = possibleLanguages[:-6]
+        try:
+            subPathExternal[subprocess.check_output('zenity --width=560 --height=240  --list --title="What is the language of the subtitles?" --radiolist --column=Pick --column=Language --column="File path" TRUE ' + possibleLanguages,stderr=subprocess.STDOUT, shell=True).strip('\n')] = os.path.abspath(sub)
+        except subprocess.CalledProcessError:
+            subPathExtenal['cze'] = os.path.abspath(sub)
+
     movieName = ''
     subNotFound = SubLanguageID
     subPaths = {}
+    sys.exit()
     while True:
         badSubtitles,subPaths,subNotFound,imdbIDTemp,movieNameTemp,movieYearTemp = download_subtitles(token,searchBy,moviePath,movieName,badSubtitles,subNotFound,subPaths)
         if imdbIDTemp:
