@@ -327,11 +327,13 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitl
                             CD += str(item['SubActualCD']) + '/' + str(item['SubSumCD'])
                         else:
                             CD += '\'\''         
-                        subtitleItems += '"' + item['SubFileName'] + '" ' + item['LanguageName'] + ' ' + hearingImpaired + ' ' + CD + ' ' + item['SubFormat']  + ' ' + item['IDMovieImdb'] + ' ' +item['SubDownloadsCnt'] + ' '
+                        subtitleItems += item['IDSubtitleFile'] + ' "' + item['SubFileName'] + '" ' + item['LanguageName'] + ' ' + hearingImpaired + ' ' + CD + ' ' + item['SubFormat']  + ' ' + item['IDMovieImdb'] + ' ' +item['SubDownloadsCnt'] + ' '
                 if not len(subtitlesList['data']) == len(badSubtitlesDown[lang]):
-                    process_subtitleSelection = subprocess.Popen('zenity --width=1280 --height=480 --list --title="' + os.path.basename(moviePathDown) + ' - ' + searchBy[lang] + '" --column="Available subtitles" --column="Language" --column="Hearing impaired" --column="CD" --column="Format" --column="IMDb ID" --column="Download count" '  + subtitleItems, shell=True, stdout=subprocess.PIPE)
+                    process_subtitleSelection = subprocess.Popen('zenity --width=1280 --height=480 --list --title="' + os.path.basename(moviePathDown) + ' - ' + searchBy[lang] + '" --column=subID --column="Available subtitles" --column="Language" --column="Hearing impaired" --column="CD" --column="Format" --column="IMDb ID" --column="Download count" '  + subtitleItems, shell=True, stdout=subprocess.PIPE)
+                    # FIXME --print-column vrati sloupce co clovek chce, opravit to a poslat do upstreamu u filmu hot fuzz od axxa se to projevuje
                     subtitleSelected = str(process_subtitleSelection.communicate()[0]).strip('\n')
                     resp = process_subtitleSelection.returncode
+
                 else:
                     resp = 'Full'
             else:
@@ -343,7 +345,7 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitl
                 index = 0
                 subIndex = 0
                 for item in subtitlesList['data']:
-                    if item['SubFileName'] == subtitleSelected:
+                    if item['IDSubtitleFile'] == subtitleSelected:
                         subIndex = index
                     else:
                         index += 1
@@ -570,7 +572,6 @@ try:
         searchBy[lang] = 'Hash'  
         badSubtitles[lang] = []
     badTiming = ''
-    badNumber = len(SubLanguageID)
     imdbID = ''
     movieName = ''
     movieYear = ''
@@ -616,6 +617,7 @@ try:
                     subPathExternalDict[lang] = [moviePath,lang]
                     subNotFound = get_lang([b for b in make_list(subNotFound) if lang not in b])
                     alreadyMerged = True
+    badNumber = len(subNotFound)
 
     # ==== Download subtitles from the net ====================================
     try:
@@ -630,7 +632,7 @@ try:
         sys.exit(1)
     movieName = ''
     while subNotFound:
-        subLookedFor = subNotFound
+        subLookedFor = list(subNotFound)
         # Did we exhaust all posibilities?
         breaking = True
         for sub in subNotFound:
