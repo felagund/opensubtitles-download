@@ -57,7 +57,7 @@ SubLanguageID = ['eng','cze']
 #pathToMoveResultingFileTo = ''
 pathToMoveResultingFileTo = '/home/drew/Desktop/Filmy/'
 
-languages = {'alb': 'Albanian',  'ara': 'Arabic',  'arm': 'Armenian', 'may': 'Malay',  'bos': 'Bosnian',  'pob': 'Brazilian',  'bul': 'Bulgarian',  'cat': 'Catalan',  'eus': 'Basque',  'chi': 'Chinese',  'hrv': 'Croatian',  'cze': 'Czech',  'dan': 'Danish',  'dut': 'Dutch',  'eng': 'English', 'bre': 'British English', 'epo': 'Esperanto',  'est': 'Estonian',  'fin': 'Finnish',  'fre': 'French',  'geo': 'Georgian',  'ger': 'German',  'ell': 'Greek',  'heb': 'Hebrew',  'hun': 'Hungarian',  'ind': 'Indonesian',  'ita': 'Italian',  'jpn': 'Japanese',  'kaz': 'Kazakh',  'kor': 'Korean',  'lav': 'Latvian',  'lit': 'Lithuanian',  'ltz': 'Luxembourgish',  'mac': 'Macedonian',  'nor': 'Norwegian',  'per': 'Persian',  'pol': 'Polish',  'por': 'Portuguese',  'rum': 'Romanian',  'rus': 'Russian',  'scc': 'Serbian',  'slo': 'Slovak',  'slv': 'Slovenian',  'spa': 'Spanish',  'swe': 'Swedish',  'tha': 'Thai',  'tur': 'Turkish',  'ukr': 'Ukrainian',  'vie': 'Vietnamese', 'sq': 'Albanian',  'ar': 'Arabic',  'hy': 'Armenian', 'ms': 'Malay',  'bs': 'Bosnian',  'pb': 'Brazilian',  'bg': 'Bulgarian',  'ca': 'Catalan',  'eu': 'Basque',  'zh': 'Chinese',  'hrv': 'Croatian',  'cs': 'Czech',  'da': 'Danish',  'nl': 'Dutch',  'en': 'English', 'eo':	'Esperanto', 'et': 'Estonian',  'fi': 'Finnish',  'fr': 'French',  'ka': 'Georgian',  'de': 'German',  'el': 'Greek',  'he': 'Hebrew',  'hu': 'Hungarian',  'id': 'Indonesian',  'it': 'Italian',  'ja': 'Japanese', 'kk': 'Kazakh', 'ko': 'Korean', 'mk': 'Macedonian',  'lv': 'Latvian',  'lt': 'Lithuanian',  'lb': 'Luxembourgish',  'no': 'Norwegian',  'fa': 'Persian',  'pl': 'Polish',  'pt': 'Portuguese',  'ro': 'Romanian',  'ru': 'Russian',  'sr': 'Serbian',  'sk': 'Slovak',  'sl': 'Slovenian',  'es': 'Spanish',  'sv': 'Swedish',  'th': 'Thai',  'tr': 'Turkish',  'uk': 'Ukrainian',  'vi': 'Vietnamese'}
+languages = {'alb': 'Albanian',  'ara': 'Arabic',  'arm': 'Armenian', 'may': 'Malay',  'bos': 'Bosnian',  'pob': 'Brazilian',  'bul': 'Bulgarian',  'cat': 'Catalan',  'eus': 'Basque',  'chi': 'Chinese',  'hrv': 'Croatian',  'cze': 'Czech',  'dan': 'Danish',  'dut': 'Dutch',  'eng': 'English', 'bre': 'British English', 'epo': 'Esperanto',  'est': 'Estonian',  'fin': 'Finnish',  'fre': 'French',  'geo': 'Georgian',  'ger': 'German',  'ell': 'Greek',  'heb': 'Hebrew',  'hun': 'Hungarian', 'ice':'Icelandic', 'ind': 'Indonesian',  'ita': 'Italian',  'jpn': 'Japanese',  'kaz': 'Kazakh',  'kor': 'Korean',  'lav': 'Latvian',  'lit': 'Lithuanian',  'ltz': 'Luxembourgish',  'mac': 'Macedonian',  'nor': 'Norwegian',  'per': 'Persian',  'pol': 'Polish',  'por': 'Portuguese',  'rum': 'Romanian',  'rus': 'Russian',  'scc': 'Serbian',  'slo': 'Slovak',  'slv': 'Slovenian',  'spa': 'Spanish',  'swe': 'Swedish',  'tha': 'Thai',  'tur': 'Turkish',  'ukr': 'Ukrainian',  'vie': 'Vietnamese', 'sq': 'Albanian',  'ar': 'Arabic',  'hy': 'Armenian', 'ms': 'Malay',  'bs': 'Bosnian',  'pb': 'Brazilian',  'bg': 'Bulgarian',  'ca': 'Catalan',  'eu': 'Basque',  'zh': 'Chinese',  'hrv': 'Croatian',  'cs': 'Czech',  'da': 'Danish',  'nl': 'Dutch',  'en': 'English', 'eo':	'Esperanto', 'et': 'Estonian',  'fi': 'Finnish',  'fr': 'French',  'ka': 'Georgian',  'de': 'German',  'el': 'Greek',  'he': 'Hebrew',  'hu': 'Hungarian', 'is':'Icelandic',  'id': 'Indonesian',  'it': 'Italian',  'ja': 'Japanese', 'kk': 'Kazakh', 'ko': 'Korean', 'mk': 'Macedonian',  'lv': 'Latvian',  'lt': 'Lithuanian',  'lb': 'Luxembourgish',  'no': 'Norwegian',  'fa': 'Persian',  'pl': 'Polish',  'pt': 'Portuguese',  'ro': 'Romanian',  'ru': 'Russian',  'sr': 'Serbian',  'sk': 'Slovak',  'sl': 'Slovenian',  'es': 'Spanish',  'sv': 'Swedish',  'th': 'Thai',  'tr': 'Turkish',  'uk': 'Ukrainian',  'vi': 'Vietnamese'}
 
 # ==== Server selection ========================================================
 # XML-RPC server domain for opensubtitles.org:
@@ -442,7 +442,7 @@ def merge(merged,imdbID,movieName,movieYear,langFound,subPaths,moviePath):
         title = ''
         for i in range(3):
             try:
-                # Find imdbID when all subtitles have been downloaded manualy and we have not ever merged yet
+                # Find imdbID when all subtitles have been downloaded manually and we have not ever merged yet
                 if not imdbID:
                     if not title:
                         try:
@@ -458,7 +458,12 @@ def merge(merged,imdbID,movieName,movieYear,langFound,subPaths,moviePath):
                     except subprocess.CalledProcessError:
                         sys.exit(1)
                 imdbMovie = imdb.IMDb(timeout=7,reraiseExceptions=True).get_movie(imdbID)
+                if not movieName:
+                    movieName = imdbMovie['title']
+                if not movieYear:
+                    movieYear = str(imdbMovie['year'])
                 movieLanguageFull = imdbMovie.get('languages')[0]
+                print movieLanguageFull
                 timedOut = False
                 break
             except imdb.IMDbDataAccessError:
@@ -490,11 +495,6 @@ def merge(merged,imdbID,movieName,movieYear,langFound,subPaths,moviePath):
                     movieYear = subprocess.check_output('zenity --width=600  --entry --text="Enter movie year" --title="' + moviePath.rsplit('/')[-1] + '"',stderr=subprocess.STDOUT, shell=True).strip('\n')
             except subprocess.CalledProcessError:
                 sys.exit(1)
-        else:
-            if not movieName:
-                movieName = imdbMovie['title']
-            if not movieYear:
-                movieYear = str(imdbMovie['year'])
     
         # Get three-letter ISO code
         if movieLanguageFull:
@@ -548,6 +548,7 @@ def merge(merged,imdbID,movieName,movieYear,langFound,subPaths,moviePath):
     
     # Finally merge the file    
     if not merged:
+        #FIXME run with ipython3 and see wheter it can handle files with unicode character \xc3 in path
         mkvFileName = os.path.dirname(moviePath) + '/' + movieNameMkv.replace(' ','_').lower() + movieName.replace(' ','_').lower() + '-' + movieYear + '-a_' + movieLanguageISO  + '-s_'+ mmgLangs + '.mkv'
     
     try:
@@ -653,7 +654,7 @@ try:
                 except subprocess.CalledProcessError:
                     subprocess.call('zenity --error --text="User pressed cancel, aborting"',shell=True)
                     sys.exit(1)
-            subPathExternalDict =  editSubs(subLangsPossible,sub,sub.rsplit('.')[-1],moviePath,subPathExternalDict)
+            #subPathExternalDict =  editSubs(subLangsPossible,sub,sub.rsplit('.')[-1],moviePath,subPathExternalDict)
     # In the end, check whether we have some subtitles already 
     else:
         alreadyMerged = False
