@@ -1,9 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-#umej mergnout titulky stahnute z titulky com
-#postarej se o nove imdb pole
-
 # OpenSubtitles download / Gnome edition
 # Version 1.1
 #
@@ -312,6 +309,7 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitl
                 imdbIDDown = collections.Counter(imdbIDGroupDown).most_common()[0][0]
                 movieNameDown = collections.Counter(movieNameGroupDown).most_common()[0][0]
                 movieYearDown = collections.Counter(movieYearGroupDown).most_common()[0][0]
+            onlyOne = False
             if len(subtitlesList['data']) != 1:
                 subtitleItems = ''
                 for item in subtitlesList['data']:
@@ -339,6 +337,7 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitl
             else:
                 subtitleSelected = ''
                 resp = 0
+                onlyOne = True
                    
             if resp == 0:
                 # Select subtitle file to download
@@ -375,6 +374,11 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitl
                     searchBy[lang] = None
                 if resp == 'Full':
                     del subPathsDown[lang]
+            if onlyOne:
+                if searchBy[lang] == 'Hash':
+                    searchBy[lang] = 'Name'
+                else:
+                    searchBy[lang] = None
         else:
             if searchBy[lang] == 'Hash':
                 searchBy[lang] = 'Name'
@@ -431,8 +435,25 @@ def merge(merged,imdbID,movieName,movieYear,langFound,subPaths,moviePath):
             movieLanguageISO = moviePath.rsplit('-a_')[-1][:3]
             movieNameEng = moviePath.split('-')[0].rsplit('/')[-1]
     if not merged:
+        movieLanguageFull = ''
+        title = ''
         for i in range(3):
-            try: 
+            try:
+                # Find imdbID when all subtitles have been downloaded manualy and we have not ever merged yet
+                if not imdbID:
+                    if not title:
+                        try:
+                            title = subprocess.check_output('zenity --width=600 --text="Year is helpful, dots, underscores are ok" --entry --title="What is the title of the movie?" --entry-text="' + moviePath.rsplit('/')[-1] + '"',shell=True,stderr=subprocess.STDOUT)
+                        except subprocess.CalledProcessError:
+                            sys.exit(1)
+                    results = imdb.IMDb(timeout=7,reraiseExceptions=True).search_movie(title)
+                    a = ''
+                    for movie in results:
+                        a += str(movie.movieID) + ' "' + str(movie['title']) + '" '
+                    try:
+                        imdbID = subprocess.check_output('zenity --width=800 --height=480  --list --text=Pick\ movie --column=imdbID --column=Title --text="Edit title" ' + a  ,stderr=subprocess.STDOUT, shell=True)                            
+                    except subprocess.CalledProcessError:
+                        sys.exit(1)
                 imdbMovie = imdb.IMDb(timeout=7,reraiseExceptions=True).get_movie(imdbID)
                 movieLanguageFull = imdbMovie.get('languages')[0]
                 timedOut = False
@@ -444,16 +465,39 @@ def merge(merged,imdbID,movieName,movieYear,langFound,subPaths,moviePath):
         if timedOut:          
             try:
                 # subprocess.call(['zenity', '--error', '--text=Unable to connect to IMDb, aborting. Please check:\n- Your internet connection status\n- www.imdb.com availability and imdbpy status'])
-                movieLanguageFull = subprocess.check_output('zenity --width=200 --height=420  --list --text=Pick\ Language --column=Languages  eng  fre cze ger chi ita jpn kor rus spa swe nor dan fin',stderr=subprocess.STDOUT, shell=True  )
+                movieLanguageISO = subprocess.check_output('zenity --width=200 --height=420  --list --text=Pick\ Language --column=Languages  eng  fre cze ger chi ita jpn kor rus spa swe nor dan fin',stderr=subprocess.STDOUT, shell=True  ).strip('\n')
+
             except subprocess.CalledProcessError:
                 # The user pressed cancel, logout and exit
                 #server.LogOut(token) # We should log out here, but this situation is so scarce it does not matter probably
                 sys.exit(1)
+            try:
+                if not title:
+                    title = moviePath.rsplit('/')[-1] 
+                if not movieName:
+                    movieName = subprocess.check_output('zenity --width=600  --title=Movie\ title --entry --text="Enter movie title, articles can we anywhere" --entry-text="' + title + '"',stderr=subprocess.STDOUT, shell=True  )
+                    if movieLanguageISO == 'eng':
+                        movieNameMkv = subprocess.check_output('zenity --width=600  --title=Movie\ title --entry --text="Enter title in original language, do not worry about dash" --entry-text="' + title + '"',stderr=subprocess.STDOUT, shell=True  ).strip('\n')
+                        movieNameMkv += '-'
+
+            except subprocess.CalledProcessError:
+                sys.exit(1)
+            try:
+                if not movieYear:
+                    movieYear = subprocess.check_output('zenity --width=600  --entry --text="Enter movie year" --title="' + moviePath.rsplit('/')[-1] + '"',stderr=subprocess.STDOUT, shell=True).strip('\n')
+            except subprocess.CalledProcessError:
+                sys.exit(1)
+        else:
+            if not movieName:
+                movieName = imdbMovie['title']
+            if not movieYear:
+                movieYear = str(imdbMovie['year'])
     
         # Get three-letter ISO code
-        for lang in languages:
-            if languages[lang] == movieLanguageFull and len(lang) == 3: 
-                movieLanguageISO = lang
+        if movieLanguageFull:
+            for lang in languages:
+                if languages[lang] == movieLanguageFull and len(lang) == 3: 
+                    movieLanguageISO = lang
 
     
         # Get English title if movie is not in English
@@ -462,7 +506,7 @@ def merge(merged,imdbID,movieName,movieYear,langFound,subPaths,moviePath):
         movieNameMkv = ''
         movieName = handleArticles(movieName)
         pickMovieName = ''
-        if not movieLanguageFull == 'English':
+        if not movieLanguageISO == 'eng' and not timedOut:
             for aka in imdbMovie.get('akas'):
                 if 'English' in aka.split('::')[1]:
                     movieNameEng = handleArticles(aka.split('::')[0])
@@ -473,16 +517,15 @@ def merge(merged,imdbID,movieName,movieYear,langFound,subPaths,moviePath):
                 try:
                     movieNameEngTemp = subprocess.check_output('zenity --width=720 --height=560  --list --text=Pick\ English\ title --column=Titles --column=IMDd\ descriptions ' + pickMovieName + 'False "No suitable title found"',stderr=subprocess.STDOUT, shell=True)
                 except subprocess.CalledProcessError:
-                    pass
+                    sys.exit(1)
                 if movieNameEngTemp == 'False\n':
                     try:
                         movieNameEngTemp = subprocess.check_output('zenity --entry --text="Enter the title of the movie (articles can be in front)"',stderr=subprocess.STDOUT, shell=True)
                     except subprocess.CalledProcessError:
-                        pass
+                        sys.exit(1)
                 movieNameEng = handleArticles(movieNameEngTemp.replace('\n',''))
             if not movieNameEng == movieName:
                 movieNameMkv = movieNameEng + '-'
-
     # Prepare command for subtitles
     mmgLangs = ''
     mmgSubArgs = ''
@@ -510,7 +553,8 @@ def merge(merged,imdbID,movieName,movieYear,langFound,subPaths,moviePath):
         move = True
     except subprocess.CalledProcessError:
         move = False
-    return mkvFileName,movieNameEng,move
+        sys.exit(1)
+    return mkvFileName,movieNameEng,movieName,move
 
 # ==== Get file(s) path(s) =====================================================
 # Get opensubtitles-download script path, then remove it from argv list
@@ -654,7 +698,7 @@ try:
                 continue
         
         # Check output and decide what to do next
-        subprocess.call(['mplayer', moviePath])
+        subprocess.call(['mplayer','-fs','-osdlevel','3', moviePath])
         try:    
             subprocess.check_output('zenity --question --title="Is everything alright?" --text="Are subtitles downloaded and are they in sync?" --ok-label=Yes --cancel-label=No',stderr=subprocess.STDOUT, shell=True)
             # If everything is alright, this did not raise an exception and we can break while loop
@@ -678,7 +722,7 @@ try:
                         else:
                             d += '" '
                 try:
-                    badTiming = subprocess.check_output('zenity --width=720 --height=560  --list --text="What is wrong?" --column=Combinations --column="Language(s) out of sync" ' + d + ' False "I made a mistake, all subtitles are bad" True "I made a mistake, all subtitles are good" ',stderr=subprocess.STDOUT, shell=True).strip('\n')
+                    badTiming = subprocess.check_output('zenity --width=720 --height=560  --list --text="What is wrong?" --column=Combinations --column="Language(s) out of sync" ' + d + ' False "I made a mistake, all subtitles are bad" True "I made a mistake, all subtitles are good" Break "Abort whatever we are doing"',stderr=subprocess.STDOUT, shell=True).strip('\n')
                 # Assume all is alright when user cancels
                 except subprocess.CalledProcessError:
                     break
@@ -693,6 +737,8 @@ try:
 
                 elif badTiming == 'True':
                     subNotFound = []
+                elif badTiming == 'Break':
+                    sys.exit(1)
                 else:
                     subNotFound = badTiming.replace(' ','').split(',')
                     badNumber = len(subNotFound)
@@ -723,7 +769,7 @@ try:
         subprocess.call(['zenity', '--info', '--title=No subtitles found', '--text=No subtitles found' + langNotFound + 'for this video:\n' + moviePath.rsplit('/')[-1] + langFoundStr])
 
     # call matroska 
-    mkvFileName,movieNameEng,move = merge(alreadyMerged,imdbID,movieName,movieYear,langFound,subPaths,moviePath)
+    mkvFileName,movieNameEng,movieName,move = merge(alreadyMerged,imdbID,movieName,movieYear,langFound,subPaths,moviePath)
     if move:
         if not movieNameEng:
             movieDirName = movieName
@@ -742,7 +788,7 @@ try:
                 subprocess.call('trash "' + newFilePath  + '"', shell=True)
             shutil.move(mkvFileName,newFileDirPath)
             # Play the file to see whether everything is ok
-            subprocess.call(['mplayer', newFilePath])
+            subprocess.call(['mplayer','-fs','-osdlevel', '3', newFilePath])
             # Trash the original directory
             if os.getcwd() == moviePath.rsplit('/')[-1]:
                 os.chdir(os.pardir)
