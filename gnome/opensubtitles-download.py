@@ -168,8 +168,11 @@ def editSubs(subLanguageEdit,subPathEdit,subFormatEdit,moviePathEdit,subPathsEdi
 
     # Convert English subtitles to unicode (only if the use some special character, otherwise stay ascii which we do not mind)
     if subLanguageEdit == 'eng':
+        print subPathEdit
         f = open(subPathEdit,"r").read()
+
         enc = chardet.detect(f)['encoding']
+        print enc
         tmp = f.decode(enc)
         f = open(subPathEdit, 'w')
         f.write(tmp.encode('utf-8'))
@@ -447,11 +450,11 @@ def merge(merged,imdbID,movieName,movieYear,langFound,subPaths,moviePath):
                         except subprocess.CalledProcessError:
                             sys.exit(1)
                     results = imdb.IMDb(timeout=7,reraiseExceptions=True).search_movie(title)
-                    a = ''
+                    a = u''
                     for movie in results:
-                        a += str(movie.movieID) + ' "' + str(movie['title']) + '" '
+                        a += unicode(movie.movieID) + ' "' + movie['title'] + '" ' + unicode(movie['year']) + ' '
                     try:
-                        imdbID = subprocess.check_output('zenity --width=800 --height=480  --list --text=Pick\ movie --column=imdbID --column=Title --text="Edit title" ' + a  ,stderr=subprocess.STDOUT, shell=True)                            
+                        imdbID = subprocess.check_output('zenity --width=800 --height=480  --list --text=Pick\ movie --column=imdbID --column=Title --column=Year --text="Edit title" ' + a  ,stderr=subprocess.STDOUT, shell=True)                            
                     except subprocess.CalledProcessError:
                         sys.exit(1)
                 imdbMovie = imdb.IMDb(timeout=7,reraiseExceptions=True).get_movie(imdbID)
