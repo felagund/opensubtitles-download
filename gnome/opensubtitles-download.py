@@ -168,11 +168,8 @@ def editSubs(subLanguageEdit,subPathEdit,subFormatEdit,moviePathEdit,subPathsEdi
 
     # Convert English subtitles to unicode (only if the use some special character, otherwise stay ascii which we do not mind)
     if subLanguageEdit == 'eng':
-        print subPathEdit
         f = open(subPathEdit,"r").read()
-
         enc = chardet.detect(f)['encoding']
-        print enc
         tmp = f.decode(enc)
         f = open(subPathEdit, 'w')
         f.write(tmp.encode('utf-8'))
@@ -271,11 +268,8 @@ def editSubs(subLanguageEdit,subPathEdit,subFormatEdit,moviePathEdit,subPathsEdi
 
 # ==== Download subtitles ======================================================
 # Download subtitles
-def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitlesDown,subNotFoundDown,subPathsDown):
+def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,imdbIDDown,movieYearDown,badSubtitlesDown,subNotFoundDown,subPathsDown):
     # Search for available subtitles (using file hash and size)
-
-    imdbIDDown = ''
-    movieYearDown = ''
     movieHash = hashFile(moviePathDown)
     movieSize = os.path.getsize(moviePathDown)
     #moviePathDown = os.path.abspath(moviePathDown)
@@ -287,7 +281,9 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitl
             searchList.append({'sublanguageid':lang, 'moviehash':movieHash, 'moviebytesize':str(movieSize)})
         # Search for available subtitles (using file name)
         elif searchBy[lang] == 'Name':
-            if not movieNameDown =='': # Search movie by movie name
+            print movieNameDown,333
+            if len(movieNameDown) > 0: # Search movie by movie name
+                print 1
                 searchList.append({'sublanguageid':lang, 'query':movieNameDown})
             else: # Search movie by file name
                 searchList.append({'sublanguageid':lang, 'query':moviePathDown.rsplit('/')[-1].rsplit('.')[-2]}) 
@@ -303,17 +299,9 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitl
                 item['MovieName'] = item['MovieName'].replace("'", "\'")
            
             # If there are more than one subtitles, let the user decide which  will be downloaded
-                (imdbIDGroupDown,movieNameGroupDown,movieYearGroupDown) = [],[],[]
-            for item in subtitlesList['data']:
-                imdbIDGroupDown.append(item['IDMovieImdb'])
-                movieNameGroupDown.append(item['MovieName'])
-                movieYearGroupDown.append(item['MovieYear'])
-            if searchBy[lang] == 'Hash': # If searching by filename, the results might be bad
-                imdbIDDown = collections.Counter(imdbIDGroupDown).most_common()[0][0]
-                movieNameDown = collections.Counter(movieNameGroupDown).most_common()[0][0]
-                movieYearDown = collections.Counter(movieYearGroupDown).most_common()[0][0]
             onlyOne = False
             if len(subtitlesList['data']) != 1:
+                print 2
                 subtitleItems = ''
                 for item in subtitlesList['data']:
                     if not item['IDSubtitleFile'] in badSubtitlesDown[lang]:
@@ -337,6 +325,25 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitl
 
                 else:
                     resp = 'Full'
+                (imdbIDGroupDown,movieNameGroupDown,movieYearGroupDown) = [],[],[]
+                for item in subtitlesList['data']:
+                    imdbIDGroupDown.append(item['IDMovieImdb'])
+                    movieNameGroupDown.append(item['MovieName'])
+                    movieYearGroupDown.append(item['MovieYear'])
+                if searchBy[lang] == 'Hash': # If searching by filename, the results might be bad
+                    if imdbIDDown == '':
+                        imdbIDDown = collections.Counter(imdbIDGroupDown).most_common()[0][0]
+                        movieNameDown = collections.Counter(movieNameGroupDown).most_common()[0][0]
+                        movieYearDown = collections.Counter(movieYearGroupDown).most_common()[0][0]
+                else:
+                    if imdbIDDown == '':
+                        try:
+                            subprocess.check_output('zenity --question --title="do we have the right movie" --text="Is IMDBID, name and year plausible?" --ok-label=Yes --cancel-label=No',stderr=subprocess.STDOUT, shell=True)
+                            imdbIDDown = collections.Counter(imdbIDGroupDown).most_common()[0][0]
+                            movieNameDown = collections.Counter(movieNameGroupDown).most_common()[0][0]
+                            movieYearDown = collections.Counter(movieYearGroupDown).most_common()[0][0]
+                        except subprocess.CalledProcessError:
+                            pass
             else:
                 subtitleSelected = ''
                 resp = 0
@@ -386,7 +393,13 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,badSubtitl
             if searchBy[lang] == 'Hash':
                 searchBy[lang] = 'Name'
             else:
-                searchBy[lang] = None
+                if movieNameDown == '': # Ask user about file name
+                    try:
+                        movieNameDown = subprocess.check_output('zenity --width=600 --text="Just title, I guess" --entry --title="What is the title of the movie?" --entry-text="' + moviePathDown.rsplit('/')[-1].rsplit('.')[-2] + '"',shell=True,stderr=subprocess.STDOUT).strip('\n')
+                    except subprocess.CalledProcessError:
+                        sys.exit(1)
+                else:
+                    searchBy[lang] = None
 
             # Behave nicely if user is searching for multiple languages at once
             #langLookedFor = re.split(r"\s*,\s*", lang)
@@ -446,13 +459,20 @@ def merge(merged,imdbID,movieName,movieYear,langFound,subPaths,moviePath):
                 if not imdbID:
                     if not title:
                         try:
-                            title = subprocess.check_output('zenity --width=600 --text="Year is helpful, dots, underscores are ok" --entry --title="What is the title of the movie?" --entry-text="' + moviePath.rsplit('/')[-1] + '"',shell=True,stderr=subprocess.STDOUT)
+                            title = subprocess.check_output('zenity --width=600 --text="Year is helpful, dots, underscores are ok" --entry --title="What is the title of the movie?" --entry-text="' + moviePath.rsplit('/')[-1] + '"',shell=True,stderr=subprocess.STDOUT).strip('\n')
                         except subprocess.CalledProcessError:
                             sys.exit(1)
                     results = imdb.IMDb(timeout=7,reraiseExceptions=True).search_movie(title)
                     a = u''
                     for movie in results:
-                        a += unicode(movie.movieID) + ' "' + movie['title'] + '" ' + unicode(movie['year']) + ' '
+                        for movie in results:
+                             a += unicode(movie.movieID) + ' "' + movie['title'] + '" '
+                             # Year might not be set
+                             try:
+                                 a += unicode(movie['year'])
+                             except KeyError:
+                                 a += u'????'
+                             a += ' '
                     try:
                         imdbID = subprocess.check_output('zenity --width=800 --height=480  --list --text=Pick\ movie --column=imdbID --column=Title --column=Year --text="Edit title" ' + a  ,stderr=subprocess.STDOUT, shell=True)                            
                     except subprocess.CalledProcessError:
@@ -463,7 +483,6 @@ def merge(merged,imdbID,movieName,movieYear,langFound,subPaths,moviePath):
                 if not movieYear:
                     movieYear = str(imdbMovie['year'])
                 movieLanguageFull = imdbMovie.get('languages')[0]
-                print movieLanguageFull
                 timedOut = False
                 break
             except imdb.IMDbDataAccessError:
@@ -654,7 +673,7 @@ try:
                 except subprocess.CalledProcessError:
                     subprocess.call('zenity --error --text="User pressed cancel, aborting"',shell=True)
                     sys.exit(1)
-            #subPathExternalDict =  editSubs(subLangsPossible,sub,sub.rsplit('.')[-1],moviePath,subPathExternalDict)
+            subPathExternalDict =  editSubs(subLangsPossible,sub,sub.rsplit('.')[-1],moviePath,subPathExternalDict)
     # In the end, check whether we have some subtitles already 
     else:
         alreadyMerged = False
@@ -689,13 +708,14 @@ try:
         if breaking:
             subLookedFor = []
             break
-        badSubtitles,subPaths,subNotFound,imdbIDTemp,movieNameTemp,movieYearTemp = download_subtitles(token,searchBy,moviePath,movieName,badSubtitles,subNotFound,subPaths)
+        badSubtitles,subPaths,subNotFound,imdbIDTemp,movieNameTemp,movieYearTemp = download_subtitles(token,searchBy,moviePath,movieName,imdbID,movieYear,badSubtitles,subNotFound,subPaths)
+        print badSubtitles,subPaths,subNotFound,imdbIDTemp,movieNameTemp,movieYearTemp
 
-        if imdbIDTemp:
+        if imdbIDTemp or movieNameTemp:
             imdbID = imdbIDTemp
             movieName = movieNameTemp
             movieYear = movieYearTemp
-
+        
         # Continue if some subtitles were not downloaded and we are not searching by name
         if subNotFound:
             if not None in searchBy.values():
@@ -755,7 +775,7 @@ try:
     # Disconnect
     server.LogOut(token)
 
-    # Print a message if some/all subtitles not found
+    # print a message if some/all subtitles not found
     langFound =[i[1] for i in subPaths.values()]
     if len(langFound) < (len(SubLanguageID)-len(subPathExternalDict)):
         langFoundStr = ''
