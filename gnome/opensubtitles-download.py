@@ -220,7 +220,7 @@ def editSubs(subLanguageEdit,subPathEdit,subFormatEdit,moviePathEdit,subPathsEdi
                     delta += 13 - len(editedSubsList)
 
     # Delete some automatically inserted subtitles
-    deleteLines = ['Najlepsi zazitok z pozerania - Open Subtitles MKV Player\n','[ENGLISH]\n','Best watched using Open Subtitles MKV Player\n','FDb.cz - navstivte svet filmu\n','Subtitles downloaded from www.OpenSubtitles.org\n','Download Movie Subtitles Searcher from www.OpenSubtitles.org\n','www.titulky.com\n','WWW:TITULKY.COM\n','SDI Media Group\n','De Aldisio, Agence Press.\n','Video SubtitIes By\n','www.OpenSubtitles.org\n','www.OpenSubtitles.org\n']
+    deleteLines = ['Najlepsi zazitok z pozerania - Open Subtitles MKV Player\n','[ENGLISH]\n','Best watched using Open Subtitles MKV Player\n','FDb.cz - navstivte svet filmu\n','Subtitles downloaded from www.OpenSubtitles.org\n','Download Movie Subtitles Searcher from www.OpenSubtitles.org\n','www.titulky.com\n','WWW:TITULKY.COM\n','www.Titulky.com\n','SDI Media Group\n','De Aldisio, Agence Press.\n','Video SubtitIes By\n','www.OpenSubtitles.org\n','www.OpenSubtitles.org\n']
     deleteLinesIndexes = [allSubs.index(i) for i in allSubs if i in deleteLines]
     delta = 0
     for index in deleteLinesIndexes:
@@ -809,7 +809,7 @@ try:
                 os.makedirs(newFileDirPath)
             newFilePath = newFileDirPath + mkvFileName.rsplit('/')[-1]
             if os.path.exists(newFilePath):
-                subprocess.call('trash "' + newFilePath  + '"', shell=True)
+                subprocess.call('trash-put "' + newFilePath  + '"', shell=True)
             shutil.move(mkvFileName,newFileDirPath)
             # Play the file to see whether everything is ok
             subprocess.call(['mplayer','-fs','-osdlevel', '3', newFilePath])
@@ -818,12 +818,12 @@ try:
                 os.chdir(os.pardir)
             if not os.getcwd() == newFilePath:
                 if not '/'.join(moviePath.rsplit('/')[:-1]) == '/home/drew/Desktop':
-                    subprocess.call('trash "' + '/'.join(moviePath.rsplit('/')[:-1]) + '"', shell=True)
+                    subprocess.call('trash-put "' + '/'.join(moviePath.rsplit('/')[:-1]) + '"', shell=True)
                 else:
                     filesToTrash = '"' + '" "'.join([i[0] for i in subPaths.values()]) + '"'
                     if os.path.exists(newFilePath):
                        filesToTrash += ' "' + moviePath + '"'
-                    subprocess.call('trash ' + filesToTrash, shell=True)
+                    subprocess.call('trash-put ' + filesToTrash, shell=True)
     sys.exit(0)
     
 except Exception,e:
