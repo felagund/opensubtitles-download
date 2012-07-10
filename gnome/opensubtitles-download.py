@@ -296,12 +296,10 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,imdbIDDown
             # Sanitize title strings to avoid parsing errors
             for item in subtitlesList['data']:
                 item['MovieName'] = item['MovieName'].replace('"', '\\"')
-                item['MovieName'] = item['MovieName'].replace("'", "\'")
            
             # If there are more than one subtitles, let the user decide which  will be downloaded
             onlyOne = False
             if len(subtitlesList['data']) != 1:
-                print 2
                 subtitleItems = ''
                 for item in subtitlesList['data']:
                     if not item['IDSubtitleFile'] in badSubtitlesDown[lang]:
@@ -325,25 +323,6 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,imdbIDDown
 
                 else:
                     resp = 'Full'
-                (imdbIDGroupDown,movieNameGroupDown,movieYearGroupDown) = [],[],[]
-                for item in subtitlesList['data']:
-                    imdbIDGroupDown.append(item['IDMovieImdb'])
-                    movieNameGroupDown.append(item['MovieName'])
-                    movieYearGroupDown.append(item['MovieYear'])
-                if searchBy[lang] == 'Hash': # If searching by filename, the results might be bad
-                    if imdbIDDown == '':
-                        imdbIDDown = collections.Counter(imdbIDGroupDown).most_common()[0][0]
-                        movieNameDown = collections.Counter(movieNameGroupDown).most_common()[0][0]
-                        movieYearDown = collections.Counter(movieYearGroupDown).most_common()[0][0]
-                else:
-                    if imdbIDDown == '':
-                        try:
-                            subprocess.check_output('zenity --question --title="do we have the right movie" --text="Is IMDBID, name and year plausible?" --ok-label=Yes --cancel-label=No',stderr=subprocess.STDOUT, shell=True)
-                            imdbIDDown = collections.Counter(imdbIDGroupDown).most_common()[0][0]
-                            movieNameDown = collections.Counter(movieNameGroupDown).most_common()[0][0]
-                            movieYearDown = collections.Counter(movieYearGroupDown).most_common()[0][0]
-                        except subprocess.CalledProcessError:
-                            pass
             else:
                 subtitleSelected = ''
                 resp = 0
@@ -367,6 +346,26 @@ def download_subtitles(token,searchByDown,moviePathDown,movieNameDown,imdbIDDown
                 subPath=os.path.dirname(moviePathDown) + '/' + subFileName
                 subPathsDown[lang]=[subPath,lang]
                 subNotFoundDown.remove(lang) 
+                # Get imdb ID according to movie year and name
+                (imdbIDGroupDown,movieNameGroupDown,movieYearGroupDown) = [],[],[]
+                for item in subtitlesList['data']:
+                    imdbIDGroupDown.append(item['IDMovieImdb'])
+                    movieNameGroupDown.append(item['MovieName'])
+                    movieYearGroupDown.append(item['MovieYear'])
+                if searchBy[lang] == 'Hash': # If searching by filename, the results might be bad
+                    if imdbIDDown == '':
+                        imdbIDDown = collections.Counter(imdbIDGroupDown).most_common()[0][0]
+                        movieNameDown = collections.Counter(movieNameGroupDown).most_common()[0][0]
+                        movieYearDown = collections.Counter(movieYearGroupDown).most_common()[0][0]
+                else:
+                    if imdbIDDown == '':
+                        try:
+                            subprocess.check_output('zenity --question --title="Do we have the right movie" --text="Most common title is:\n' + collections.Counter(movieNameGroupDown).most_common()[0][0] + '\nMost common year is:\n' + collections.Counter(movieYearGroupDown).most_common()[0][0] + '\nTitle of the movie for which are the subtitles selected:\n' + subtitlesList['data'][subIndex]['MovieName'] + '\nYear of the subtitles:\n' +subtitlesList['data'][subIndex]['MovieYear'] + '\nIs it plausible? (We are using data of selected subtitles.)" --ok-label=Yes --cancel-label=No',stderr=subprocess.STDOUT, shell=True)
+                            imdbIDDown = subtitlesList['data'][subIndex]['IDMovieImdb']
+                            movieNameDown = subtitlesList['data'][subIndex]['MovieName'] 
+                            movieYearDown = subtitlesList['data'][subIndex]['MovieYear']
+                        except subprocess.CalledProcessError:
+                            pass
 
                 # Download and unzip selected subtitles (with progressbar)
                 process_subDownload = subprocess.call('(wget -O - ' + subURL + ' | gunzip  > "' + subPath + '") 2>&1 | zenity --progress --auto-close --pulsate --title="Downloading subtitle, please wait..." --text="Downloading subtitle for \'' + subtitlesList['data'][0]['MovieName'] + '\' : "', shell=True)
